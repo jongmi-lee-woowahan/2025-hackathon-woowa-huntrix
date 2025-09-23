@@ -25,12 +25,18 @@
         data-testid="button-set-objective"
         @click="handleSubmit"
         :disabled="!objective.trim() || isProcessing"
-        class="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2 px-4 rounded-md disabled:opacity-50"
+        :class="[
+          'w-full py-2 px-4 rounded-md disabled:opacity-50',
+          aiStatus === 'error' 
+            ? 'bg-red-500 text-white hover:bg-red-600' 
+            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+        ]"
       >
         <div v-if="isProcessing" class="flex items-center justify-center space-x-2">
           <Sparkles class="h-4 w-4 animate-spin" />
           <span>AI가 분석 중...</span>
         </div>
+        <span v-else-if="aiStatus === 'error'">캠페인 재수행</span>
         <span v-else>다음 단계로 진행</span>
       </button>
     </div>
@@ -43,6 +49,7 @@ import { Target, Sparkles } from 'lucide-vue-next'
 
 interface Props {
   isProcessing?: boolean
+  aiStatus?: 'idle' | 'processing' | 'completed' | 'error'
 }
 
 defineProps<Props>()

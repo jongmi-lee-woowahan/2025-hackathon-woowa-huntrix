@@ -6,7 +6,7 @@
         <span>고객 세그먼트 선택</span>
       </h2>
       <p class="text-muted-foreground mb-6">
-        타겟팅할 고객 그룹을 선택해주세요. 여러 세그먼트를 동시에 선택할 수 있습니다.
+        타겟팅할 고객 그룹을 선택해주세요. 하나의 세그먼트만 선택할 수 있습니다.
       </p>
       
       <!-- 통합 세그먼트 목록 -->
@@ -233,7 +233,16 @@ const huntrixCount = computed(() => segments.value.filter(s => s.source === 'hun
 const toggleSegment = (id: string) => {
   const segment = segments.value.find(s => s.id === id)
   if (segment) {
-    segment.selected = !segment.selected
+    // 단일 선택: 다른 모든 세그먼트는 선택 해제
+    segments.value.forEach(s => {
+      s.selected = s.id === id ? !s.selected : false
+    })
+    
+    console.log('🔄 세그먼트 선택 변경 (단일 선택):', {
+      segmentId: id,
+      selected: segment.selected,
+      segmentName: segment.name
+    })
   }
 }
 
