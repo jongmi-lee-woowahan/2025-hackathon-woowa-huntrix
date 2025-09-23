@@ -1,67 +1,81 @@
 <template>
   <div class="space-y-6">
-    <div class="border-0 bg-card/50 backdrop-blur-sm p-6 rounded-lg">
-      <h2 class="flex items-center space-x-2 text-xl mb-4">
-        <BarChart3 class="h-5 w-5 text-primary" />
-        <span>예상 성과 지표</span>
-      </h2>
-      <p class="text-muted-foreground mb-6">
-        {{ segmentName }}의 예상 마케팅 성과를 확인해보세요.
-      </p>
+    <h2 class="text-2xl font-bold mb-4">전체 예상 성과</h2>
+    
+    <!-- 로딩 상태 -->
+    <div v-if="isLoading" class="flex items-center justify-center p-8">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <span class="ml-2 text-muted-foreground">성과 데이터를 분석 중...</span>
     </div>
-
-    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+    
+    <!-- 에러 상태 -->
+    <div v-else-if="errorMessage" class="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
+      <h3 class="font-semibold text-destructive mb-2">데이터 처리 오류</h3>
+      <p class="text-sm text-muted-foreground mb-2">{{ errorMessage }}</p>
+      <details class="text-xs">
+        <summary class="cursor-pointer text-muted-foreground hover:text-foreground">원본 응답 데이터 보기</summary>
+        <pre class="mt-2 p-2 bg-muted rounded text-xs overflow-auto">{{ JSON.stringify(rawApiData, null, 2) }}</pre>
+      </details>
+    </div>
+    
+    <!-- 성과 지표 카드들 -->
+    <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div
         v-for="metric in metrics"
         :key="metric.id"
-        class="border-0 bg-card/50 backdrop-blur-sm p-4 rounded-lg"
-        :data-testid="`card-metric-${metric.id}`"
+        class="border-0 bg-card/50 backdrop-blur-sm rounded-lg p-6"
       >
-        <div class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <h3 class="text-sm font-medium text-muted-foreground">
-            {{ metric.title }}
-          </h3>
-          <component :is="metric.icon" :class="['h-4 w-4', metric.color]" />
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-sm font-medium text-muted-foreground mb-1">{{ metric.title }}</p>
+            <div class="flex items-baseline space-x-1">
+              <span class="text-3xl font-bold">{{ metric.value }}{{ metric.unit }}</span>
+            </div>
+            <p class="text-xs text-muted-foreground mt-1">{{ metric.description }}</p>
+          </div>
+          <div class="p-2 bg-primary/10 rounded-md">
+            <component :is="getIcon(metric.icon)" class="h-5 w-5 text-primary" />
+          </div>
         </div>
-        <div class="space-y-2">
-          <div class="text-2xl font-bold text-foreground">
-            {{ metric.value }}
+        
+        <div class="mt-4 space-y-3">
+          <!-- 타겟 고객 지표 -->
+          <div v-if="metric.targetAvg" class="flex items-center justify-between p-2 bg-primary/5 rounded-md">
+            <div class="flex items-center space-x-2">
+              <component :is="Users" class="h-4 w-4 text-primary" />
+              <span class="text-sm font-medium text-primary">타겟 고객</span>
+            </div>
+            <span class="text-base font-bold text-primary">{{ metric.targetAvg }}{{ metric.id === 'revisit_rate' ? '회' : '' }}</span>
           </div>
-          <div class="flex items-center space-x-2">
-            <span 
-              :class="[
-                'flex items-center space-x-1 px-2 py-1 rounded text-xs',
-                metric.changeType === 'increase' ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10'
-              ]"
-            >
-              <component :is="metric.changeType === 'increase' ? TrendingUp : TrendingDown" class="h-3 w-3" />
-              <span>{{ Math.abs(metric.change) }}%</span>
-            </span>
+          
+          <!-- 전체 고객 지표 -->
+          <div v-if="metric.allAvg" class="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+            <div class="flex items-center space-x-2">
+              <component :is="Globe" class="h-4 w-4 text-muted-foreground" />
+              <span class="text-sm font-medium text-muted-foreground">전체 고객</span>
+            </div>
+            <span class="text-base font-bold text-muted-foreground">{{ metric.allAvg }}{{ metric.id === 'revisit_rate' ? '회' : '' }}</span>
           </div>
-          <p class="text-xs text-muted-foreground">
-            {{ metric.description }}
-          </p>
+          
+          <!-- 비율 표시 (conversion_rate, pred_revenue_rate만) -->
+          <div v-if="metric.showRatio" class="flex items-center justify-center text-sm">
+            <component :is="TrendingUp" class="h-4 w-4 text-green-500 mr-1" />
+            <span class="text-green-600 font-medium">{{ metric.value }}배 높음</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="border-0 bg-card/50 backdrop-blur-sm p-6 rounded-lg">
-      <div class="flex items-center justify-between">
-        <div class="space-y-2">
-          <h4 class="text-lg font-semibold text-foreground">
-            전체 예상 성과
-          </h4>
-          <p class="text-sm text-muted-foreground">
-            선택된 세그먼트 기준 월간 예상치
-          </p>
+    <!-- 선택된 세그먼트 정보 강조 -->
+    <div v-if="segmentName" class="mt-6 p-6 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl">
+      <div class="flex items-start space-x-3">
+        <div class="flex-shrink-0 p-2 bg-primary/10 rounded-lg">
+          <component :is="Target" class="h-6 w-6 text-primary" />
         </div>
-        <div class="text-right space-y-1">
-          <div class="text-2xl font-bold text-primary">
-            ₩12.4M
-          </div>
-          <div class="text-sm text-muted-foreground">
-            예상 수익
-          </div>
+        <div>
+          <h3 class="text-lg font-semibold text-foreground mb-1">선택된 타겟 세그먼트</h3>
+          <p class="text-base font-medium text-primary leading-relaxed">{{ segmentName }}</p>
+          <p class="text-sm text-muted-foreground mt-2">위 성과 지표는 선택된 세그먼트를 기준으로 분석된 결과입니다.</p>
         </div>
       </div>
     </div>
@@ -69,56 +83,190 @@
 </template>
 
 <script setup lang="ts">
-import { TrendingUp, TrendingDown, MousePointer, DollarSign, Target, BarChart3 } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+import { TrendingUp, Target, Users, DollarSign, Globe } from 'lucide-vue-next'
 
 interface Props {
   segmentName?: string
+  analyticsData?: any // API에서 받은 analytics 데이터
+}
+
+interface MetricData {
+  id: string
+  title: string
+  value: string
+  unit: string
+  description: string
+  icon: string
+  showRatio: boolean
+  targetAvg?: string
+  allAvg?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  segmentName: "선택된 세그먼트"
+  segmentName: '',
+  analyticsData: null
 })
 
-const metrics = [
-  {
-    id: 'ctr',
-    title: '클릭률 (CTR)',
-    value: '3.4%',
-    change: 12.5,
-    changeType: 'increase',
-    description: '예상 광고 클릭률',
-    icon: MousePointer,
-    color: 'text-chart-1'
-  },
-  {
-    id: 'conversion',
-    title: '전환율',
-    value: '2.8%',
-    change: 8.2,
-    changeType: 'increase',
-    description: '예상 구매 전환율',
-    icon: Target,
-    color: 'text-chart-2'
-  },
-  {
-    id: 'roi',
-    title: '투자 수익률 (ROI)',
-    value: '340%',
-    change: -5.1,
-    changeType: 'decrease',
-    description: '예상 마케팅 ROI',
-    icon: DollarSign,
-    color: 'text-chart-3'
-  },
-  {
-    id: 'reach',
-    title: '도달률',
-    value: '85.2%',
-    change: 15.8,
-    changeType: 'increase',
-    description: '타겟 고객 도달률',
-    icon: BarChart3,
-    color: 'text-chart-4'
+const isLoading = ref(false)
+const errorMessage = ref<string>('')
+const rawApiData = ref<any>(null)
+
+const getIcon = (iconName: string) => {
+  const iconMap: Record<string, any> = {
+    'Target': Target,
+    'Users': Users,
+    'DollarSign': DollarSign
   }
-]
+  return iconMap[iconName] || Target
+}
+
+// API 데이터를 파싱하여 metrics로 변환
+const metrics = computed<MetricData[]>(() => {
+  if (!props.analyticsData) {
+    return getDefaultMetrics()
+  }
+
+  try {
+    console.log('🔄 Analytics 데이터 파싱 시작:', props.analyticsData)
+    
+    // output 필드에서 JSON 추출
+    let parsedData: any
+    if (props.analyticsData.output) {
+      const outputString = props.analyticsData.output
+      console.log('📄 Output 문자열:', outputString)
+      
+      // JSON 코드 블록에서 추출
+      const jsonStart = outputString.indexOf('```json\n')
+      const jsonEnd = outputString.lastIndexOf('\n```')
+      
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        const jsonString = outputString.substring(jsonStart + 8, jsonEnd)
+        console.log('🧹 추출된 JSON:', jsonString.substring(0, 200) + '...')
+        parsedData = JSON.parse(jsonString)
+      } else {
+        // 직접 JSON 파싱 시도
+        parsedData = JSON.parse(outputString)
+      }
+    } else {
+      parsedData = props.analyticsData
+    }
+    
+    console.log('✅ 파싱된 데이터:', parsedData)
+    
+    // 각 지표별로 (target.avg / all.avg) * 100 계산
+    const conversionRate = parsedData.conversion_rate
+    const revisitRate = parsedData.revisit_rate  
+    const predRevenueRate = parsedData.pred_revenue_rate
+
+    if (!conversionRate?.target?.avg || !conversionRate?.all?.avg ||
+        !revisitRate?.target?.avg || !revisitRate?.all?.avg ||
+        !predRevenueRate?.target?.avg || !predRevenueRate?.all?.avg) {
+      throw new Error('필수 데이터 필드가 누락되었습니다.')
+    }
+
+    // conversionValue와 revenueValue는 비율로 계산
+    const conversionValue = conversionRate.target.avg / conversionRate.all.avg
+    const revenueValue = predRevenueRate.target.avg / predRevenueRate.all.avg
+    
+    // revisitValue는 개별 값들을 그대로 사용
+    const revisitTargetValue = revisitRate.target.avg
+    const revisitAllValue = revisitRate.all.avg
+
+    console.log('📊 계산된 지표 값들:', {
+      conversion: conversionValue,
+      revisitTarget: revisitTargetValue,
+      revisitAll: revisitAllValue,
+      revenue: revenueValue
+    })
+
+    rawApiData.value = parsedData
+    errorMessage.value = ''
+
+    return [
+      {
+        id: 'conversion_rate',
+        title: '전환율 비교',
+        value: conversionValue.toFixed(2),
+        unit: '배',
+        description: '타겟 세그먼트가 전체 고객 대비 얼마나 높은 전환율을 보이는지',
+        icon: 'Target',
+        showRatio: true,
+        targetAvg: conversionRate.target.avg.toFixed(2),
+        allAvg: conversionRate.all.avg.toFixed(2)
+      },
+      {
+        id: 'revisit_rate', 
+        title: '재방문율 분석',
+        value: revisitTargetValue.toFixed(1),
+        unit: '회',
+        description: '타겟 세그먼트와 전체 고객의 재방문 패턴 비교',
+        icon: 'Users',
+        showRatio: false,
+        targetAvg: revisitTargetValue.toFixed(1),
+        allAvg: revisitAllValue.toFixed(1)
+      },
+      {
+        id: 'pred_revenue_rate',
+        title: '수익성 비교', 
+        value: revenueValue.toFixed(2),
+        unit: '배',
+        description: '타겟 세그먼트가 전체 고객 대비 얼마나 높은 수익을 창출하는지',
+        icon: 'DollarSign',
+        showRatio: true,
+        targetAvg: predRevenueRate.target.avg.toFixed(2),
+        allAvg: predRevenueRate.all.avg.toFixed(2)
+      }
+    ]
+  } catch (error) {
+    console.error('❌ Analytics 데이터 파싱 실패:', error)
+    errorMessage.value = `API 응답 데이터 파싱에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
+    rawApiData.value = props.analyticsData
+    return getDefaultMetrics()
+  }
+})
+
+// 기본 메트릭 (API 데이터가 없을 때)
+const getDefaultMetrics = (): MetricData[] => {
+  return [
+    {
+      id: 'conversion_rate',
+      title: '전환율 비교',
+      value: '-',
+      unit: '',
+      description: '데이터 로딩 중...',
+      icon: 'Target',
+      showRatio: true,
+      targetAvg: undefined,
+      allAvg: undefined
+    },
+    {
+      id: 'revisit_rate', 
+      title: '재방문율 분석',
+      value: '-',
+      unit: '',
+      description: '데이터 로딩 중...',
+      icon: 'Users',
+      showRatio: false,
+      targetAvg: undefined,
+      allAvg: undefined
+    },
+    {
+      id: 'pred_revenue_rate',
+      title: '수익성 비교', 
+      value: '-',
+      unit: '',
+      description: '데이터 로딩 중...',
+      icon: 'DollarSign',
+      showRatio: true,
+      targetAvg: undefined,
+      allAvg: undefined
+    }
+  ]
+}
+
+// analyticsData 변경 감지
+watch(() => props.analyticsData, (newData) => {
+  console.log('👀 PerformanceMetrics에서 analyticsData 변경 감지:', newData)
+}, { deep: true })
 </script>
