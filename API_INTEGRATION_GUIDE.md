@@ -28,7 +28,7 @@ client/src/
 ```bash
 # .env.development
 VITE_API_BASE_URL=http://localhost:5173/api
-VITE_USE_MOCK_API=true
+VITE_USE_MOCK_API=false
 ```
 
 **2. 프로덕션 환경**

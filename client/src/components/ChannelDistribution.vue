@@ -81,12 +81,12 @@
       </div>
       
       <div v-if="totalAllocation === 100" class="mt-4 pt-4 border-t border-border">
-        <button 
+        <button
           @click="handleNext"
-          class="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2 px-4 rounded-md"
+          class="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2 px-4 rounded-md flex items-center justify-center"
           data-testid="button-finalize-campaign"
         >
-          <Rocket class="h-4 w-4 mr-2 inline" />
+          <Rocket class="h-4 w-4 mr-2" />
           캠페인 최종 확인
         </button>
       </div>

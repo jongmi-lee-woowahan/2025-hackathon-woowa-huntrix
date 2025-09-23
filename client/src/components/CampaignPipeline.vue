@@ -63,10 +63,12 @@
           v-if="currentStep === 'segmentation'"
           class="opacity-0 animate-in fade-in slide-in-from-bottom duration-500"
         >
-          <CustomerSegmentation
-            @segments-selected="handleSegmentsSelected"
-            :is-processing="aiStatus === 'processing'"
-          />
+        <CustomerSegmentation 
+          @segments-selected="handleSegmentsSelected"
+          :is-processing="aiStatus === 'processing'"
+          :huntrix-recommendations="huntrixRecommendations"
+          :objective="objective"
+        />
         </div>
 
         <!-- Performance Metrics -->
@@ -75,11 +77,11 @@
           class="space-y-8 opacity-0 animate-in fade-in slide-in-from-bottom duration-500"
         >
           <PerformanceMetrics :segment-name="selectedSegmentNames" />
-          <div class="flex justify-center">
+          <div class="border-0 bg-card/50 backdrop-blur-sm rounded-lg">
             <button
               @click="handleMetricsNext"
               :disabled="aiStatus === 'processing'"
-              class="px-6 py-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
+              class="w-full p-6 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50 text-base font-semibold"
               data-testid="button-metrics-next"
             >
               채널 배분 단계로
@@ -123,7 +125,7 @@ import AIProcessingIndicator from './AIProcessingIndicator.vue'
 import CampaignSummaryModal from './CampaignSummaryModal.vue'
 
 // API imports
-import { api, type CampaignExecutionResponse } from '@/services/campaignApi'
+import { api, type CampaignExecutionResponse, type HuntrixCampaignRecommendation } from '@/services/campaignApi'
 
 // Types
 type PipelineStep = 'objective' | 'segmentation' | 'metrics' | 'channels' | 'summary'
@@ -158,6 +160,8 @@ const channels = ref<Channel[]>([])
 const aiStatus = ref<ProcessingStatus>('idle')
 const aiMessage = ref('')
 const showSummaryModal = ref(false)
+const huntrixRecommendations = ref<HuntrixCampaignRecommendation[]>([])
+const isLoadingRecommendations = ref(false)
 
 // Constants
 const stepOrder: PipelineStep[] = ['segmentation', 'metrics', 'channels']
@@ -231,12 +235,53 @@ const simulateAIProcessing = (message: string, duration = 2000) => {
   }, duration)
 }
 
-const handleObjectiveSet = (newObjective: string) => {
+const handleObjectiveSet = async (newObjective: string) => {
+  console.log('🎯 handleObjectiveSet 시작:', newObjective)
   objective.value = newObjective
-  simulateAIProcessing('AI가 목표를 분석하고 있습니다...')
-  setTimeout(() => {
-    currentStep.value = 'segmentation'
-  }, 3500)
+  
+  try {
+    // Huntrix API 호출 시작
+    console.log('📡 Huntrix API 호출 시작')
+    isLoadingRecommendations.value = true
+    aiStatus.value = 'processing'
+    aiMessage.value = 'AI가 캠페인을 분석하고 있습니다... (최대 5분 소요)'
+    
+    const response = await api.getHuntrixRecommendations(newObjective)
+    console.log('📡 Huntrix API 응답 받음:', response)
+    
+    if (response.success && response.data) {
+      huntrixRecommendations.value = response.data
+      console.log('✅ Huntrix 추천 설정됨:', {
+        length: huntrixRecommendations.value.length,
+        data: huntrixRecommendations.value
+      })
+      
+      // API 응답 성공 후 완료 메시지 표시
+      aiStatus.value = 'completed'
+      aiMessage.value = 'AI 분석이 완료되었습니다!'
+      
+      // 1.5초 후 다음 단계로 이동
+      setTimeout(() => {
+        aiStatus.value = 'idle'
+        console.log('🔄 currentStep을 segmentation으로 변경')
+        currentStep.value = 'segmentation'
+      }, 1500)
+      
+    } else {
+      console.error('❌ Huntrix API 응답에 데이터가 없음:', response)
+      huntrixRecommendations.value = []
+      aiStatus.value = 'error'
+      aiMessage.value = 'AI 분석 중 오류가 발생했습니다. 다시 시도해주세요.'
+    }
+  } catch (error) {
+    console.error('❌ Huntrix API 호출 실패:', error)
+    aiStatus.value = 'error'
+    aiMessage.value = 'AI 분석 중 오류가 발생했습니다. 다시 시도해주세요.'
+    huntrixRecommendations.value = []
+    console.log('🚫 에러로 인해 huntrixRecommendations를 빈 배열로 설정')
+  } finally {
+    isLoadingRecommendations.value = false
+  }
 }
 
 const handleSegmentsSelected = (segments: Segment[]) => {
