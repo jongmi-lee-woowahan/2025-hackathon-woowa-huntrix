@@ -170,7 +170,8 @@ const getChannelIcon = (name: string) => {
     '푸시 알림': Smartphone,
     '인앱 메시지': Smartphone,
     '카카오톡': MessageCircle,
-    '문자 (SMS)': MessageCircle
+    '문자 (SMS)': MessageCircle,
+    '문자': MessageCircle  // 새로운 형식 추가
   }
   return iconMap[name] || Target
 }
@@ -182,7 +183,8 @@ const getChannelPrice = (name: string): number => {
     '인앱 메시지': 2000,     // 2k
     '카카오톡': 3000,       // 3k
     '이메일': 4000,         // 4k
-    '문자 (SMS)': 5000      // 5k
+    '문자 (SMS)': 5000,     // 5k
+    '문자': 5000           // 5k (새로운 형식)
   }
   return priceMap[name] || 1000 // 기본값 1k
 }
@@ -226,14 +228,41 @@ const initializeChannels = () => {
       console.log('✅ agent-3 API 데이터 파싱 시작')
       
       const outputString = props.channelData.output
-      const jsonStart = outputString.indexOf('[')
-      const jsonEnd = outputString.lastIndexOf(']')
+      console.log('📄 Output 문자열:', outputString.substring(0, 200) + '...')
       
-      if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-        throw new Error('agent-3 API 응답에서 JSON 배열을 찾을 수 없습니다.')
+      // ```json 코드 블록에서 JSON 추출 (개선된 로직)
+      let jsonString = ''
+      if (outputString.includes('```json')) {
+        // ```json\n으로 시작하는 부분 찾기
+        let jsonStart = outputString.indexOf('```json\n')
+        if (jsonStart === -1) {
+          // 줄바꿈 없이 ```json으로 시작하는 경우
+          jsonStart = outputString.indexOf('```json')
+          if (jsonStart !== -1) {
+            jsonStart += 7 // '```json'.length
+          }
+        } else {
+          jsonStart += 8 // '```json\n'.length
+        }
+        
+        const jsonEnd = outputString.indexOf('\n```', jsonStart)
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          jsonString = outputString.substring(jsonStart, jsonEnd).trim()
+          console.log('🧹 ```json 블록에서 추출된 JSON:', jsonString.substring(0, 200) + '...')
+        } else {
+          throw new Error('```json 코드 블록을 올바르게 파싱할 수 없습니다.')
+        }
+      } else {
+        // 직접 JSON 배열 찾기 (fallback)
+        const jsonStart = outputString.indexOf('[')
+        const jsonEnd = outputString.lastIndexOf(']')
+        if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+          throw new Error('agent-3 API 응답에서 JSON 배열을 찾을 수 없습니다.')
+        }
+        jsonString = outputString.substring(jsonStart, jsonEnd + 1).trim()
+        console.log('🧹 직접 추출된 JSON:', jsonString.substring(0, 200) + '...')
       }
       
-      const jsonString = outputString.substring(jsonStart, jsonEnd + 1)
       const apiChannels = JSON.parse(jsonString)
       
       if (!Array.isArray(apiChannels) || apiChannels.length === 0) {
@@ -242,40 +271,56 @@ const initializeChannels = () => {
       
       console.log('✅ agent-3 API 데이터 사용 - 채널 개수:', apiChannels.length)
       
-      // agent-3 API 데이터 사용
+      // agent-3 API 데이터 사용 - 각 채널을 매핑
       channels.value = apiChannels.map((apiChannel: any, index: number) => {
-      console.log(`📊 처리 중인 채널 ${index}:`, apiChannel)
-      console.log(`  - name: ${apiChannel.name}`)
-      console.log(`  - description: ${apiChannel.description}`)
-      console.log(`  - customer_ratio: ${apiChannel.customer_ratio}`)
-      console.log(`  - customer_cnt: ${apiChannel.customer_cnt}`)
-      console.log(`  - lables:`, apiChannel.lables)
-      
-      const customerCount = apiChannel.customer_cnt || 1000
-      const pricePerCustomer = getChannelPrice(apiChannel.name)
-      const totalCost = customerCount * pricePerCustomer
-      
-      const mappedChannel = {
-        id: `channel_${index}`,
-        name: apiChannel.name || `채널 ${index + 1}`,
-        icon: getChannelIcon(apiChannel.name),
-        allocation: Math.round((apiChannel.customer_ratio || 0.2) * 100), // customer_ratio를 백분율로 변환
-        cost: `₩${Math.round(totalCost / 1000)}K`, // customer_cnt * 예산가격
-        customerCount: customerCount, // customer_cnt 직접 사용
-        color: getChannelColor(index),
-        labels: apiChannel.lables || [], // API에서 'lables' 사용 (오타)
-        description: apiChannel.description || null // description이 없으면 표시하지 않음
-      }
-      
-      console.log(`✨ 매핑된 채널 ${index}:`, mappedChannel)
-      return mappedChannel
+        console.log(`📊 처리 중인 채널 ${index}:`, apiChannel)
+        console.log(`  - name: ${apiChannel.name}`)
+        console.log(`  - description: ${apiChannel.description}`)
+        console.log(`  - customer_ratio: ${apiChannel.customer_ratio}`)
+        console.log(`  - customer_cnt: ${apiChannel.customer_cnt}`)
+        console.log(`  - lables:`, apiChannel.lables)
+        
+        // 필수 필드 검증
+        const channelName = apiChannel.name || `채널 ${index + 1}`
+        const customerCount = Math.max(apiChannel.customer_cnt || 1000, 1) // 최소 1명
+        const customerRatio = Math.max(apiChannel.customer_ratio || 0.01, 0) // 최소 0%
+        const pricePerCustomer = getChannelPrice(channelName)
+        const totalCost = customerCount * pricePerCustomer
+        
+        // Labels 처리 - 배열인지 확인하고 안전하게 처리
+        let processedLabels: string[] = []
+        if (apiChannel.lables && Array.isArray(apiChannel.lables)) {
+          processedLabels = apiChannel.lables
+            .filter((label: any) => typeof label === 'string' && label.trim().length > 0)
+            .map((label: string) => label.trim())
+          console.log(`  - 처리된 labels: ${processedLabels.join(', ')}`)
+        }
+        
+        const mappedChannel = {
+          id: `channel_${index}`,
+          name: channelName,
+          icon: getChannelIcon(channelName),
+          allocation: Math.round(customerRatio * 100), // customer_ratio를 백분율로 변환
+          cost: `₩${Math.round(totalCost / 1000)}K`, // 천원 단위로 표시
+          customerCount: customerCount,
+          color: getChannelColor(index),
+          labels: processedLabels, // 처리된 labels 배열 사용
+          description: (apiChannel.description && apiChannel.description.trim()) ? 
+                      apiChannel.description.trim() : undefined
+        }
+        
+        console.log(`✨ 매핑된 채널 ${index}:`, {
+          ...mappedChannel,
+          description: mappedChannel.description ? `${mappedChannel.description.substring(0, 100)}...` : undefined
+        })
+        return mappedChannel
       })
       
       console.log('🎉 agent-3 데이터로 channels 배열 생성 완료:', channels.value)
       isLoading.value = false
       
-    } else if (props.channelData === null) {
-      console.log('⚠️ channelData가 null입니다. agent-3 API 데이터 로딩 중...')
+    } else if (props.channelData === null || props.channelData === undefined) {
+      console.log('⚠️ channelData가 null/undefined입니다. agent-3 API 데이터 로딩 중...')
       isLoading.value = true
       channels.value = [] // 로딩 중에는 빈 배열
       return
@@ -308,7 +353,7 @@ const initializeDefaultChannels = () => {
       customerCount: 45200,
       color: 'text-blue-500',
       labels: [],
-      description: null
+      description: undefined
     },
     {
       id: 'mobile',
@@ -319,7 +364,7 @@ const initializeDefaultChannels = () => {
       customerCount: 38800,
       color: 'text-green-500',
       labels: [],
-      description: null
+      description: undefined
     },
     {
       id: 'email',
@@ -330,7 +375,7 @@ const initializeDefaultChannels = () => {
       customerCount: 25500,
       color: 'text-purple-500',
       labels: [],
-      description: null
+      description: undefined
     },
     {
       id: 'search',
@@ -341,7 +386,7 @@ const initializeDefaultChannels = () => {
       customerCount: 42100,
       color: 'text-orange-500',
       labels: [],
-      description: null
+      description: undefined
     },
     {
       id: 'messaging',
@@ -352,7 +397,7 @@ const initializeDefaultChannels = () => {
       customerCount: 15200,
       color: 'text-pink-500',
       labels: [],
-      description: null
+      description: undefined
     }
   ]
   isLoading.value = false

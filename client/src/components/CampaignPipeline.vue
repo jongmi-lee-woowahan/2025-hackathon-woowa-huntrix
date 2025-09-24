@@ -441,18 +441,16 @@ const handleSegmentsSelected = async (segments: Segment[]) => {
   console.log('🔍 추출된 조건들:', allConditions)
   
   if (allConditions.length > 0) {
-    // 진행률 애니메이션을 위한 변수들
+    // 진행률 애니메이션을 위한 변수들을 함수 스코프 내에 정의
     let progressCount = 0
     let progressInterval: NodeJS.Timeout | null = null
     let analyticsRetryCount = 0
-    let channelRetryCount = 0
     
     try {
       aiStatus.value = 'processing'
-      aiMessage.value = '성과 분석 및 채널 최적화를 위한 AI 분석 중...'
       
-      // 5분에 걸쳐 0-100%로 천천히 올라가는 카운팅 애니메이션
-      const totalDuration = 5 * 60 * 1000 // 5분 (밀리초)
+      // 5분(300초)에 걸쳐 0-100%로 천천히 올라가는 카운팅 애니메이션
+      const totalDuration = 300 * 1000 // 5분 (밀리초)
       const updateInterval = 1000 // 1초마다 업데이트
       const incrementPerSecond = 100 / (totalDuration / updateInterval) // 1초당 증가량
       
@@ -460,46 +458,37 @@ const handleSegmentsSelected = async (segments: Segment[]) => {
         if (progressCount < 100) {
           progressCount = Math.min(100, progressCount + incrementPerSecond)
           const displayPercent = Math.floor(progressCount)
-          aiMessage.value = `성과 분석 및 채널 최적화 중... ${displayPercent}% (최대 5분 소요)`
+          aiMessage.value = `선택된 세그먼트의 성과를 분석하고 있습니다... ${displayPercent}% (최대 5분 소요)`
         } else {
-          aiMessage.value = `성과 분석 및 채널 최적화 중... 100% (API 응답 대기 중...)`
+          // 100% 도달 시 대기 상태 유지
+          aiMessage.value = `선택된 세그먼트의 성과를 분석하고 있습니다... 100% (API 응답 대기 중...)`
         }
       }, updateInterval)
       
-      // API 호출 및 재시도 처리 함수들
+      console.log('📡 Huntrix Analytics API (agent-2) 호출 중...')
+      
+      // API 호출 및 재시도 처리 (fetch 래핑 제거, API 내부 재시도 로직 사용)
       const callAnalyticsAPI = async (conditions: any) => {
         try {
           return await api.getHuntrixAnalytics(conditions)
         } catch (error) {
           analyticsRetryCount++
           console.log(`❌ Analytics API 호출 실패 (${analyticsRetryCount}번째):`, error)
+          
+          if (analyticsRetryCount <= 3) {
+            const displayPercent = Math.floor(progressCount)
+            aiMessage.value = `Analytics API 재시도 중... (${analyticsRetryCount}/3 시도) ${displayPercent}%`
+          }
+          
           throw error
         }
       }
 
-      const callChannelAPI = async (conditions: any) => {
-        try {
-          return await api.getHuntrixChannelOptimization(conditions)
-        } catch (error) {
-          channelRetryCount++
-          console.log(`❌ Channel API 호출 실패 (${channelRetryCount}번째):`, error)
-          throw error
-        }
-      }
       
-      // agent-2와 agent-3를 동시에 호출
-      console.log('📡 Analytics API (agent-2)와 Channel API (agent-3) 동시 호출')
-      const [analyticsResponse, channelResponse] = await Promise.all([
-        callAnalyticsAPI(allConditions),
-        callChannelAPI(allConditions)
-      ])
-      
+      // 1단계: Analytics API 호출 (agent-2)
+      console.log('🚀 1단계: Analytics API (agent-2) 호출 시작')
+      const analyticsResponse = await callAnalyticsAPI(allConditions)
       console.log('📈 Analytics 응답:', analyticsResponse)
-      console.log('🎯 Channel 응답:', channelResponse)
-      
-      // 카운팅 애니메이션 정리
-      clearInterval(progressInterval)
-      progressInterval = null
       
       // Analytics 데이터 저장 및 검증
       if (analyticsResponse.success && analyticsResponse.data) {
@@ -507,25 +496,17 @@ const handleSegmentsSelected = async (segments: Segment[]) => {
         console.log('💾 Analytics 데이터 저장됨:', analyticsData.value)
       } else {
         console.warn('⚠️ Analytics API 응답에 문제가 있습니다.')
+        throw new Error('Analytics API 호출 실패')
       }
       
-      // Channel 데이터 저장 및 검증
-      if (channelResponse.success && channelResponse.data) {
-        channelData.value = channelResponse.data
-        console.log('💾 Channel 데이터 저장됨:', channelData.value)
-      } else {
-        console.warn('⚠️ Channel API 응답에 문제가 있습니다.')
-      }
+      // 카운팅 애니메이션 정리
+      clearInterval(progressInterval)
       
-      // 성공 메시지
-      const retryInfo = []
-      if (analyticsRetryCount > 0) retryInfo.push(`Analytics ${analyticsRetryCount}번`)
-      if (channelRetryCount > 0) retryInfo.push(`Channel ${channelRetryCount}번`)
-      
-      let successMessage = '성과 분석 및 채널 최적화가 완료되었습니다!'
-      if (retryInfo.length > 0) {
-        successMessage += ` (${retryInfo.join(', ')} 재시도 후 성공)`
-      }
+        // Analytics 완료 메시지
+        let successMessage = 'Analytics 분석이 완료되었습니다!'
+        if (analyticsRetryCount > 0) {
+          successMessage += ` (${analyticsRetryCount}번 재시도 후 성공)`
+        }
       
       aiStatus.value = 'completed'
       aiMessage.value = successMessage
@@ -537,7 +518,7 @@ const handleSegmentsSelected = async (segments: Segment[]) => {
       }, 1500)
       
     } catch (error) {
-      console.error('❌ API 호출 실패:', error)
+      console.error('❌ Analytics API 호출 실패:', error)
       
       // 카운팅 애니메이션 정리
       if (progressInterval) {
@@ -548,39 +529,107 @@ const handleSegmentsSelected = async (segments: Segment[]) => {
       aiStatus.value = 'error'
       const errorMsg = error instanceof Error ? error.message : '알 수 없는 오류'
       const retryInfo = []
-      if (analyticsRetryCount > 0) retryInfo.push(`Analytics ${analyticsRetryCount}번`)
-      if (channelRetryCount > 0) retryInfo.push(`Channel ${channelRetryCount}번`)
+      if (analyticsRetryCount > 1) retryInfo.push(`Analytics ${analyticsRetryCount-1}번`)
       
       const retryText = retryInfo.length > 0 ? ` (${retryInfo.join(', ')} 재시도 실패)` : ''
       aiMessage.value = `분석 실패: ${errorMsg}${retryText}`
       
-      // 에러가 발생해도 metrics 단계로 진행 (기본 데이터 사용)
+      // 에러가 발생하면 기본 데이터로 진행
       setTimeout(() => {
         aiStatus.value = 'idle'
         console.log('🔄 currentStep을 metrics로 변경 (에러 발생으로 기본 데이터 사용)')
         currentStep.value = 'metrics'
-      }, 3000)
+      }, 3000) // 에러 메시지를 조금 더 오래 보여줌
     }
   } else {
     console.log('⚠️ 조건이 없는 세그먼트만 선택됨, 기본 플로우 진행')
-    simulateAIProcessing('세그먼트 선택이 완료되었습니다...')
+    simulateAIProcessing('선택된 세그먼트의 성과를 예측하고 있습니다...')
     setTimeout(() => {
-      aiStatus.value = 'idle'
       currentStep.value = 'metrics'
-    }, 1500)
+    }, 3500)
   }
 }
 
 const handleMetricsNext = async () => {
-  // 이미 세그먼트 선택 시 agent-2, agent-3 데이터를 받았으므로 바로 다음 단계로 이동
-  console.log('📊 성과 분석 완료, 채널 배분 단계로 이동')
+  // 2단계: Channel 최적화 API 호출 (agent-3)
+  if (selectedSegments.value.length > 0) {
+    console.log('🚀 2단계: Channel API (agent-3) 호출 시작')
+    
+    const allConditions = selectedSegments.value
+      .filter(segment => segment.conditions && segment.conditions.length > 0)
+      .flatMap(segment => segment.conditions)
+    
+    if (allConditions.length > 0) {
+      try {
+        aiStatus.value = 'processing'
+        aiMessage.value = '채널 최적화를 위한 AI 분석 중...'
+        
+        // Progress 카운팅 애니메이션 시작 (5분에 걸쳐 100% 도달)
+        let progressCount = 0
+        const totalDuration = 5 * 60 * 1000 // 5분 (밀리초)
+        const updateInterval = 1000 // 1초마다 업데이트
+        const incrementPerSecond = 100 / (totalDuration / updateInterval) // 1초당 증가량 (약 0.33%)
+        
+        const progressInterval = setInterval(() => {
+          if (progressCount < 100) {
+            progressCount = Math.min(100, progressCount + incrementPerSecond)
+            const displayPercent = Math.floor(progressCount)
+            aiMessage.value = `채널 최적화 분석 중... ${displayPercent}% (최대 5분 소요)`
+          } else {
+            aiMessage.value = `채널 최적화 분석 중... 100% (API 응답 대기 중...)`
+          }
+        }, updateInterval)
+        
+        // API 호출 및 재시도 처리 (fetch 래핑 제거, API 내부 재시도 로직 사용)
+        let retryCount = 0
+        const callChannelAPI = async (conditions: any) => {
+          try {
+            return await api.getHuntrixChannelOptimization(conditions)
+          } catch (error) {
+            retryCount++
+            console.log(`❌ Channel API 호출 실패 (${retryCount}번째):`, error)
+            
+            if (retryCount <= 3) {
+              const displayPercent = Math.floor(progressCount)
+              aiMessage.value = `Channel API 재시도 중... (${retryCount}/3 시도) ${displayPercent}%`
+            }
+            
+            throw error
+          }
+        }
+        
+        const channelResponse = await callChannelAPI(allConditions)
+        console.log('🎯 Channel 응답 (MetricsNext):', channelResponse)
+        
+        clearInterval(progressInterval)
+        
+        if (channelResponse.success && channelResponse.data) {
+          channelData.value = channelResponse.data
+          console.log('💾 Channel 데이터 저장됨 (MetricsNext):', channelData.value)
+          
+          let successMessage = '채널 최적화가 완료되었습니다!'
+          if (retryCount > 0) {
+            successMessage += ` (${retryCount}번 재시도 후 성공)`
+          }
+          
+          aiStatus.value = 'completed'
+          aiMessage.value = successMessage
+        } else {
+          throw new Error('Channel API 응답 데이터가 없습니다.')
+        }
+      } catch (error) {
+        console.error('❌ Channel API 호출 실패:', error)
+        aiStatus.value = 'error'
+        aiMessage.value = '채널 최적화 중 오류가 발생했습니다.'
+        return
+      }
+    }
+  }
   
-  simulateAIProcessing('채널 배분 준비 중...')
   setTimeout(() => {
     aiStatus.value = 'idle'
-    console.log('🔄 currentStep을 channels로 변경')
     currentStep.value = 'channels'
-  }, 1000)
+  }, 1500)
 }
 
 const handleChannelsConfigured = (configuredChannels: any[]) => {

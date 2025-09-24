@@ -19,7 +19,7 @@
     </div>
     
           <!-- 성과 지표 카드들 -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div
         v-for="metric in metrics"
         :key="metric.id"
@@ -125,16 +125,14 @@ const getIcon = (iconName: string) => {
 
 // API 데이터를 파싱하여 metrics로 변환 (agent-2와 agent-3 데이터 구분)
 const metrics = computed<MetricData[]>(() => {
-  const analyticsMetrics = getAnalyticsMetrics() // agent-2: 전환율, 타겟 재방문수, 수익성
-  const channelMetrics = getChannelMetrics()     // agent-3: 총 마케팅 예상 금액
-  
-  return [...analyticsMetrics, ...channelMetrics]
+  return getAnalyticsMetrics() // agent-2: 전환율, 타겟 재방문수, 수익성 (3개만)
 })
 
 // Analytics 데이터에서 메트릭 생성
 const getAnalyticsMetrics = (): MetricData[] => {
   if (!props.analyticsData) {
-    return getDefaultAnalyticsMetrics()
+    console.log('⚠️ Analytics 데이터가 없음. 빈 배열 반환')
+    return []
   }
 
   try {
@@ -209,8 +207,8 @@ const getAnalyticsMetrics = (): MetricData[] => {
         id: 'revisit_rate', 
         title: '타겟 재방문 수',
         value: revisitTargetValue.toFixed(1),
-        unit: '회',
-        description: '타겟 고객의 평균 재방문 횟수',
+        unit: '일',
+        description: '타겟 고객의 평균 재방문 일수',
         icon: 'Users',
         showRatio: false,
         targetAvg: revisitTargetValue.toFixed(1),
@@ -232,83 +230,13 @@ const getAnalyticsMetrics = (): MetricData[] => {
     console.error('❌ Analytics 데이터 파싱 실패:', error)
     errorMessage.value = `API 응답 데이터 파싱에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
     rawApiData.value = props.analyticsData
-    return getDefaultAnalyticsMetrics()
+    return [] // API 데이터 파싱 실패 시 빈 배열 반환
   }
 }
 
 // Channel 데이터에서 메트릭 생성
 const getChannelMetrics = (): MetricData[] => {
-  if (!props.channelData) {
-    return getDefaultChannelMetrics()
-  }
-
-  try {
-    console.log('🔄 Channel 데이터 파싱 시작:', props.channelData)
-    
-    // output 필드에서 JSON 추출
-    let parsedData: any
-    if (props.channelData.output) {
-      const outputString = props.channelData.output
-      console.log('📄 Channel Output 문자열:', outputString.substring(0, 200) + '...')
-      
-      // JSON 코드 블록에서 추출
-      const jsonStart = outputString.indexOf('[')
-      const jsonEnd = outputString.lastIndexOf(']')
-      
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        const jsonString = outputString.substring(jsonStart, jsonEnd + 1)
-        console.log('🧹 추출된 Channel JSON:', jsonString.substring(0, 200) + '...')
-        parsedData = JSON.parse(jsonString)
-      } else {
-        // 직접 JSON 파싱 시도
-        parsedData = JSON.parse(outputString)
-      }
-    } else {
-      parsedData = props.channelData
-    }
-    
-    console.log('✅ 파싱된 Channel 데이터:', parsedData)
-    
-    // 총 마케팅 예상 금액 계산 (모든 채널의 customer_cnt * unit_price 합계)
-    const channelPrices: { [key: string]: number } = {
-      '푸시 알림': 1000,
-      '인앱 메시지': 2000,
-      '카카오톡': 3000,
-      '이메일': 4000,
-      '문자 (SMS)': 5000,
-      'SMS': 5000
-    }
-    
-    let totalBudget = 0
-    if (Array.isArray(parsedData)) {
-      parsedData.forEach((channel: any) => {
-        const channelName = channel.name || ''
-        const customerCount = channel.customer_cnt || 0
-        const unitPrice = channelPrices[channelName] || 1000
-        totalBudget += customerCount * unitPrice
-      })
-    }
-
-    console.log('💰 계산된 총 마케팅 예상 금액:', totalBudget)
-    
-    return [
-      {
-        id: 'total_marketing_budget',
-        title: '총 마케팅 예상 금액',
-        value: Math.round(totalBudget / 1000).toString(),
-        unit: 'K',
-        description: '모든 채널의 예상 마케팅 비용 합계',
-        icon: 'DollarSign',
-        showRatio: false,
-        targetAvg: undefined,
-        allAvg: undefined
-      }
-    ]
-    
-  } catch (error) {
-    console.error('❌ Channel 데이터 파싱 실패:', error)
-    return getDefaultChannelMetrics()
-  }
+  return [] // 총 마케팅 예상 금액 제거 - 더 이상 사용하지 않음
 }
 
 // 기본 Analytics 메트릭 (API 데이터가 없을 때)
@@ -329,8 +257,8 @@ const getDefaultAnalyticsMetrics = (): MetricData[] => {
       id: 'revisit_rate', 
       title: '타겟 재방문 수',
       value: '3.4',
-      unit: '회',
-      description: '타겟 고객의 평균 재방문 횟수',
+      unit: '일',
+      description: '타겟 고객의 평균 재방문 일수',
       icon: 'Users',
       showRatio: false,
       targetAvg: '3.4',
