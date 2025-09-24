@@ -3,14 +3,24 @@
     <div class="container mx-auto px-4 py-8 max-w-6xl">
       <!-- Header -->
       <div 
-        class="text-center space-y-4 mb-12 opacity-0 animate-in fade-in duration-500"
+        class="text-center mb-12 opacity-0 animate-in fade-in duration-500 py-8"
         style="animation-delay: 0ms"
       >
-        <h1 class="text-4xl font-bold text-foreground">
-          마케팅 캠페인 파이프라인
-        </h1>
+        <!-- Title with Logo -->
+        <div class="flex items-center justify-center gap-1 mb-2">
+          <h1 class="text-3xl font-bold text-foreground">
+            SegMA
+          </h1>
+          <!-- Logo -->
+          <img 
+            src="/logo.png" 
+            alt="SegMA Logo" 
+            class="w-12 h-12 object-contain"
+          />
+        </div>
+        
         <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
-          AI 기반 3단계 마케팅 캠페인 생성 및 최적화 도구
+          Segmentum Marketing Agent
         </p>
       </div>
 
@@ -37,7 +47,7 @@
       <!-- Campaign Objective Input -->
       <div 
         v-if="currentStep === 'objective'"
-        class="mb-12 opacity-0 animate-in fade-in slide-in-from-bottom duration-500"
+        class="px-5 mb-12 opacity-0 animate-in fade-in slide-in-from-bottom duration-500"
       >
         <CampaignObjectiveInput
           @objective-set="handleObjectiveSet"
