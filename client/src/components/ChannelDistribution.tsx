@@ -111,7 +111,7 @@ export default function ChannelDistribution({ onChannelsConfigured, budget = 100
     <div className="space-y-6">
       <Card className="border-0 bg-card/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-xl">
+          <CardTitle className="flex items-center space-x-2 text-xl pb-2">
             <Share2 className="h-5 w-5 text-primary" />
             <span>마케팅 채널 배분</span>
           </CardTitle>

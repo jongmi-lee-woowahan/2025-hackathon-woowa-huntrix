@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <div class="border-0 bg-card/50 backdrop-blur-sm p-6 rounded-lg">
-      <h2 class="flex items-center space-x-2 text-xl mb-4">
+      <h2 class="flex items-center space-x-2 text-xl pb-2">
         <Share2 class="h-5 w-5 text-primary" />
         <span>마케팅 채널 배분</span>
       </h2>

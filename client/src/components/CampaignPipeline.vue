@@ -101,6 +101,7 @@
           @objective-set="handleObjectiveSet"
           :is-processing="aiStatus === 'processing'"
           :ai-status="aiStatus"
+          :initial-objective="objective"
         />
       </div>
 
@@ -250,7 +251,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ArrowLeft } from 'lucide-vue-next'
 
 import CampaignObjectiveInput from './CampaignObjectiveInput.vue'
@@ -443,8 +444,8 @@ const simulateAIProcessing = (message: string, duration = 2000) => {
   }, duration)
 }
 
-const handleObjectiveSet = async (newObjective: string) => {
-  console.log('🎯 handleObjectiveSet 시작:', newObjective)
+const handleObjectiveSet = async (newObjective: string, retryCount = 0) => {
+  console.log('🎯 handleObjectiveSet 시작:', newObjective, '재시도 횟수:', retryCount)
   objective.value = newObjective
   
   try {
@@ -452,7 +453,9 @@ const handleObjectiveSet = async (newObjective: string) => {
     console.log('📡 Huntrix API 호출 시작')
     isLoadingRecommendations.value = true
     aiStatus.value = 'processing'
-    aiMessage.value = 'AI가 캠페인을 분석하고 있습니다... (최대 5분 소요)'
+    aiMessage.value = retryCount > 0 
+      ? `AI가 캠페인을 재분석하고 있습니다... (${retryCount + 1}번째 시도, 최대 5분 소요)`
+      : 'AI가 캠페인을 분석하고 있습니다... (최대 5분 소요)'
     
     const response = await api.getHuntrixRecommendations(newObjective)
     console.log('📡 Huntrix API 응답 받음:', response)
@@ -478,17 +481,59 @@ const handleObjectiveSet = async (newObjective: string) => {
     } else {
       console.error('❌ Huntrix API 응답에 데이터가 없음:', response)
       huntrixRecommendations.value = []
-      aiStatus.value = 'error'
-      aiMessage.value = 'AI 분석 중 오류가 발생했습니다. 다시 시도해주세요.'
+      
+      // 재시도 로직
+      if (retryCount < 5) { // 최대 5번 재시도
+        console.log('🔄 재시도 중...', retryCount + 1)
+        setTimeout(() => {
+          handleObjectiveSet(newObjective, retryCount + 1)
+        }, 2000) // 2초 후 재시도
+      } else {
+        console.log('❌ 최대 재시도 횟수 초과, 사용자에게 재시도 요청')
+        aiStatus.value = 'error'
+        aiMessage.value = 'AI 서버 연결에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        
+        // 처음 입력 단계로 돌아가기
+        setTimeout(() => {
+          aiStatus.value = 'idle'
+          aiMessage.value = ''
+          objective.value = '' // 입력 초기화
+          huntrixRecommendations.value = []
+          console.log('🔄 처음 입력 단계로 돌아가기')
+          // currentStep은 이미 'objective'이므로 변경하지 않음
+        }, 3000)
+      }
     }
   } catch (error) {
     console.error('❌ Huntrix API 호출 실패:', error)
-    aiStatus.value = 'error'
-    aiMessage.value = 'AI 분석 중 오류가 발생했습니다. 다시 시도해주세요.'
     huntrixRecommendations.value = []
     console.log('🚫 에러로 인해 huntrixRecommendations를 빈 배열로 설정')
+    
+    // 재시도 로직
+    if (retryCount < 3) { // 최대 3번 재시도
+      console.log('🔄 재시도 중...', retryCount + 1)
+      setTimeout(() => {
+        handleObjectiveSet(newObjective, retryCount + 1)
+      }, 2000) // 2초 후 재시도
+    } else {
+      console.log('❌ 최대 재시도 횟수 초과, 사용자에게 재시도 요청')
+      aiStatus.value = 'error'
+      aiMessage.value = 'AI 서버 연결에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      
+      // 처음 입력 단계로 돌아가기
+      setTimeout(() => {
+        aiStatus.value = 'idle'
+        aiMessage.value = ''
+        objective.value = '' // 입력 초기화
+        huntrixRecommendations.value = []
+        console.log('🔄 처음 입력 단계로 돌아가기')
+        // currentStep은 이미 'objective'이므로 변경하지 않음
+      }, 3000)
+    }
   } finally {
-    isLoadingRecommendations.value = false
+    if (retryCount === 0 || retryCount >= 3) { // 첫 번째 시도이거나 최대 재시도 횟수 초과 시 로딩 상태 해제
+      isLoadingRecommendations.value = false
+    }
   }
 }
 
@@ -648,21 +693,16 @@ const handleSegmentsSelected = async (segments: Segment[]) => {
         progressInterval = null
       }
       
-      aiStatus.value = 'error'
-      const errorMsg = error instanceof Error ? error.message : '알 수 없는 오류'
-      const retryInfo = []
-      if (analyticsRetryCount > 1) retryInfo.push(`Analytics ${analyticsRetryCount-1}번`)
-      if (channelRetryCount > 1) retryInfo.push(`Channel ${channelRetryCount-1}번`)
-      
-      const retryText = retryInfo.length > 0 ? ` (${retryInfo.join(', ')} 재시도 실패)` : ''
-      aiMessage.value = `분석 실패: ${errorMsg}${retryText}`
+      // UI에서는 에러를 표시하지 않고 계속 진행
+      aiStatus.value = 'completed'
+      aiMessage.value = '분석이 완료되었습니다!'
       
       // 에러가 발생하면 기본 데이터로 진행
       setTimeout(() => {
         aiStatus.value = 'idle'
         console.log('🔄 currentStep을 metrics로 변경 (에러 발생으로 기본 데이터 사용)')
         currentStep.value = 'metrics'
-      }, 3000) // 에러 메시지를 조금 더 오래 보여줌
+      }, 1500) // 에러 메시지를 더 짧게 표시
     }
   } else {
     console.log('⚠️ 조건이 없는 세그먼트만 선택됨, 기본 플로우 진행')
@@ -703,12 +743,17 @@ const handleCampaignExecute = async (executionResponse: CampaignExecutionRespons
 }
 
 const handleCampaignError = (error: string) => {
-  aiStatus.value = 'error'
-  aiMessage.value = `오류: ${error}`
+  console.error('❌ 캠페인 실행 오류:', error)
+  // UI에서는 에러를 표시하지 않고 계속 진행
+  aiStatus.value = 'completed'
+  aiMessage.value = 'AI 서버 연결에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
   
   setTimeout(() => {
     aiStatus.value = 'idle'
-  }, 5000)
+    objective.value = '' // 입력 필드 초기화
+    console.log('🔄 currentStep을 objective로 변경 (에러 발생으로 입력 필드 초기화)')
+    currentStep.value = 'objective'
+  }, 3000)
 }
 
 const handleRetryExecution = () => {

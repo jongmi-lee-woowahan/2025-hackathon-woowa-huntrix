@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-6">
     <div class="border-0 bg-card/50 backdrop-blur-sm p-6 rounded-lg">
-      <h2 class="flex items-center space-x-2 text-xl mb-4">
+      <h2 class="flex items-center space-x-2 text-xl pb-2">
         <Users class="h-5 w-5 text-primary" />
         <span>고객 세그먼트 선택</span>
       </h2>
-      <p class="text-muted-foreground mb-6">
+      <p class="text-muted-foreground pb-4">
         타겟팅할 고객 그룹을 선택해주세요. 하나의 세그먼트만 선택할 수 있습니다.
       </p>
       

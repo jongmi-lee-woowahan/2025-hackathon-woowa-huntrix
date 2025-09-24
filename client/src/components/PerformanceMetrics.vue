@@ -28,7 +28,7 @@
         <div class="flex items-start justify-between">
           <div>
             <p class="text-sm font-medium text-muted-foreground mb-1">{{ metric.title }}</p>
-            <div class="flex items-baseline space-x-1">
+            <div class="flex items-baseline space-x-1 py-3">
               <span class="text-3xl font-bold">{{ metric.value }}{{ metric.unit }}</span>
             </div>
             <p class="text-xs text-muted-foreground mt-1">{{ metric.description }}</p>
@@ -40,7 +40,7 @@
         
         <div class="mt-4 space-y-3">
           <!-- 타겟 고객 지표 -->
-          <div v-if="metric.targetAvg" class="flex items-center justify-between p-2 bg-primary/5 rounded-md">
+          <div v-if="metric.targetAvg" class="flex items-center justify-between bg-primary/5 rounded-md">
             <div class="flex items-center space-x-2">
               <component :is="Users" class="h-4 w-4 text-primary" />
               <span class="text-sm font-medium text-primary">타겟 고객</span>
@@ -49,7 +49,7 @@
           </div>
           
           <!-- 전체 고객 지표 -->
-          <div v-if="metric.allAvg" class="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+          <div v-if="metric.allAvg" class="flex items-center justify-between bg-muted/30 rounded-md">
             <div class="flex items-center space-x-2">
               <component :is="Globe" class="h-4 w-4 text-muted-foreground" />
               <span class="text-sm font-medium text-muted-foreground">전체 고객</span>

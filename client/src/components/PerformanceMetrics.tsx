@@ -66,7 +66,7 @@ export default function PerformanceMetrics({ segmentName = "선택된 세그먼�
     <div className="space-y-6">
       <Card className="border-0 bg-card/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-xl">
+          <CardTitle className="flex items-center space-x-2 text-xl pb-2">
             <BarChart3 className="h-5 w-5 text-primary" />
             <span>예상 성과 지표</span>
           </CardTitle>

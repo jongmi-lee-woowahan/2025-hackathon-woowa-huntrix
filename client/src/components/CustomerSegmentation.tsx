@@ -73,7 +73,7 @@ export default function CustomerSegmentation({ onSegmentsSelected, isProcessing 
     <div className="space-y-6">
       <Card className="border-0 bg-card/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-xl">
+          <CardTitle className="flex items-center space-x-2 text-xl pb-2">
             <Users className="h-5 w-5 text-primary" />
             <span>고객 세그먼트 선택</span>
           </CardTitle>
