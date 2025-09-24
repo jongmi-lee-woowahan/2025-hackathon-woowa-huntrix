@@ -15,8 +15,52 @@
         </h2>
       </div>
 
+      <!-- Execution Progress State -->
+      <div v-if="isExecuting" class="p-8 text-center">
+        <div class="flex flex-col items-center space-y-6">
+          <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+          <div class="space-y-2">
+            <h3 class="text-xl font-semibold text-foreground">캠페인 실행 중...</h3>
+            <p class="text-muted-foreground">{{ executionProgress }}</p>
+          </div>
+          
+          <!-- Progress Steps -->
+          <div class="w-full max-w-md space-y-3" style="padding-bottom: 3rem;">
+            <div class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <div v-if="executionStep >= 1" class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div v-else-if="executionStep === 0" class="w-6 h-6 bg-primary rounded-full animate-pulse"></div>
+                <div v-else class="w-6 h-6 bg-muted rounded-full"></div>
+              </div>
+              <span :class="executionStep >= 1 ? 'text-foreground font-medium' : 'text-muted-foreground'">
+                캠페인 실행 준비
+              </span>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <div v-if="executionStep >= 2" class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div v-else-if="executionStep === 1" class="w-6 h-6 bg-primary rounded-full animate-pulse"></div>
+                <div v-else class="w-6 h-6 bg-muted rounded-full"></div>
+              </div>
+              <span :class="executionStep >= 2 ? 'text-foreground font-medium' : 'text-muted-foreground'">
+                고객 세그먼트 생성
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Loading State -->
-      <div v-if="isLoading" class="p-8 text-center">
+      <div v-else-if="isLoading" class="p-8 text-center">
         <div class="flex flex-col items-center space-y-4">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p class="text-muted-foreground">캠페인 데이터를 불러오는 중...</p>
@@ -42,7 +86,7 @@
         </div>
       </div>
       
-      <!-- Content - only show when not loading and no error -->
+      <!-- Content - only show when not loading, not executing and no error -->
       <div v-else-if="campaignData" class="p-6 space-y-6">
         <!-- Campaign Objective -->
         <div class="border-0 bg-card/50 p-4 rounded-lg">
@@ -146,26 +190,60 @@
       </div>
 
       <!-- Footer Actions -->
-      <div v-if="!isLoading && !error" class="flex justify-end gap-2 p-6 border-t border-border">
+      <div v-if="!isLoading && !error && !isExecuting" class="flex justify-end gap-2 p-6 border-t border-border">
         <button 
           @click="$emit('close')"
-          :disabled="isExecuting"
-          class="px-4 py-2 border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+          class="px-4 py-2 border border-border rounded-md hover:bg-muted transition-colors"
           data-testid="button-cancel-execution"
         >
           취소
         </button>
         <button 
           @click="handleExecute"
-          :disabled="isExecuting || !campaignData"
+          :disabled="!campaignData"
           class="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors disabled:opacity-50"
           data-testid="button-execute-campaign"
         >
-          <div v-if="isExecuting" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-          <Rocket v-else class="h-4 w-4" />
-          <span>{{ isExecuting ? '실행 중...' : '캠페인 실행' }}</span>
+          <Rocket class="h-4 w-4" />
+          <span>캠페인 실행</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div 
+    v-if="showSuccessModal" 
+    class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+    @click="handleSuccessModalClose"
+  >
+    <div 
+      class="bg-background border border-border rounded-lg max-w-md w-full"
+      @click.stop
+    >
+      <div class="p-6 text-center space-y-6">
+         <div class="flex justify-center">
+           <div class="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center">
+             <svg class="w-8 h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+               <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+             </svg>
+           </div>
+         </div>
+         <div class="space-y-3">
+           <h3 class="text-xl font-semibold text-foreground">캠페인 실행이 완료되었습니다!</h3>
+           <p class="text-muted-foreground">
+             {{ successMessage }}
+           </p>
+         </div>
+         <div class="pt-2">
+           <button 
+             @click="handleSuccessModalClose"
+             class="w-full px-4 py-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors font-medium"
+           >
+             확인
+           </button>
+         </div>
+       </div>
     </div>
   </div>
 </template>
@@ -200,6 +278,12 @@ const isLoading = ref(false)
 const isExecuting = ref(false)
 const error = ref<string | null>(null)
 const loadedCampaignData = ref<CampaignData | null>(null)
+
+// Execution progress state
+const executionStep = ref(0) // 0: 시작, 1: 캠페인 실행 완료, 2: 세그먼트 생성 완료
+const executionProgress = ref('')
+const showSuccessModal = ref(false)
+const successMessage = ref('')
 
 // Computed values
 const campaignData = computed(() => {
@@ -268,6 +352,8 @@ const handleExecute = async () => {
   try {
     isExecuting.value = true
     error.value = null
+    executionStep.value = 0
+    executionProgress.value = '캠페인 실행을 시작합니다...'
 
     console.log('🚀 캠페인 실행 시작')
 
@@ -286,6 +372,7 @@ const handleExecute = async () => {
     console.log('📋 캠페인 실행 페이로드:', payload)
 
     // 1. 기본 캠페인 실행 API 호출
+    executionProgress.value = '기본 캠페인을 실행하고 있습니다...'
     const campaignResponse = await api.executeCampaign(payload)
     console.log('📡 기본 캠페인 실행 API 응답:', campaignResponse)
 
@@ -293,8 +380,14 @@ const handleExecute = async () => {
       throw new Error(campaignResponse.message || '캠페인 실행에 실패했습니다.')
     }
 
+    executionStep.value = 1
+    executionProgress.value = '기본 캠페인 실행이 완료되었습니다. 세그먼트를 생성하고 있습니다...'
+
     // 2. channelData를 활용한 세그먼트 생성 API 호출
     const segmentResults = await createSegmentsFromChannelData(payload)
+
+    executionStep.value = 2
+    executionProgress.value = '모든 작업이 완료되었습니다!'
 
     // 3. 세그먼트 생성 결과를 캠페인 응답에 병합
     const finalResponse = {
@@ -307,19 +400,31 @@ const handleExecute = async () => {
     
     emit('execute', finalResponse)
     
-    // 성공 메시지 표시 후 모달 닫기
+    // 성공 메시지 설정
+    const segmentCount = segmentResults?.filter((r: any) => r.success).length || 0
+    successMessage.value = segmentCount > 0 
+      ? `캠페인이 실행되고 ${segmentCount}개의 세그먼트가 생성되었습니다.`
+      : '캠페인이 성공적으로 실행되었습니다.'
+    
+    // 실행 완료 후 성공 모달 표시
     setTimeout(() => {
-      emit('close')
-    }, 1500)
+      isExecuting.value = false
+      showSuccessModal.value = true
+    }, 1000)
 
   } catch (err) {
     console.error('❌ 캠페인 실행 중 오류:', err)
     const errorMessage = err instanceof Error ? err.message : '캠페인 실행 중 오류가 발생했습니다.'
     error.value = errorMessage
     emit('error', errorMessage)
-  } finally {
     isExecuting.value = false
   }
+}
+
+// 성공 모달 닫기
+const handleSuccessModalClose = () => {
+  showSuccessModal.value = false
+  emit('close')
 }
 
 // 재시도 핸들러
@@ -330,7 +435,7 @@ const handleRetry = () => {
   }
 }
 
-// 배경 클릭으로 모달 닫기
+// 배경 클릭으로 모달 닫기 (실행 중이 아닐 때만)
 const handleBackdropClick = () => {
   if (!isExecuting.value) {
     emit('close')
