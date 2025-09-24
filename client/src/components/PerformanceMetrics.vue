@@ -60,7 +60,7 @@
           <!-- 비율 표시 (conversion_rate, pred_revenue_rate만) -->
           <div v-if="metric.showRatio" class="flex items-center justify-center text-sm">
             <component :is="TrendingUp" class="h-4 w-4 text-green-500 mr-1" />
-            <span class="text-green-600 font-medium"> {{ metric.value }} 배 높음</span>
+            <span class="text-green-600 font-medium ml-1"> {{ metric.value }} 배 높음</span>
           </div>
         </div>
       </div>
