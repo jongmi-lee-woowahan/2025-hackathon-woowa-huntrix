@@ -62,12 +62,12 @@
             <img 
               src="/logo.png" 
               alt="SegMA Logo" 
-              class="w-12 h-12 object-contain"
+              class="w-8 h-8 object-contain"
             />
           </div>
         </div>
         
-        <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+        <p class="text-xl text-muted-foreground max-w-2xl mx-auto pt-1">
           Segmentum Marketing Agent
         </p>
       </div>
