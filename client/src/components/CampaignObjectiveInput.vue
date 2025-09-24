@@ -1,5 +1,5 @@
 <template>
-  <div class="border-0 bg-card/50 backdrop-blur-sm p-6 rounded-lg">
+  <div class="border-2 bg-card/50 backdrop-blur-sm p-6 rounded-lg">
     <div class="flex flex-row items-center space-y-0 pb-4">
       <div class="flex items-center space-x-2">
         <Target class="h-5 w-5 text-primary" />
