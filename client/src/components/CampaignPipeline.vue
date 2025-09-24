@@ -170,6 +170,7 @@
           @error="handleCampaignError"
           @retry="handleRetryExecution"
           :campaign-data="campaignSummaryData"
+          :channel-data="channelData"
           :auto-load="false"
         />
     </div>

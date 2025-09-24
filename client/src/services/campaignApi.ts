@@ -677,6 +677,161 @@ export const campaignApi = {
       
       throw error
     }
+  },
+
+  // 세그먼트 생성 API
+  async createSegment(segmentData: {
+    title: string,
+    description: string,
+    conditions: HuntrixCondition[]
+  }): Promise<ApiResponse<any>> {
+    try {
+      console.log('🚀 세그먼트 생성 API 호출 시작:', segmentData)
+      
+      const payload = {
+        title: `[Woowa Huntrix AI generated ✨] ${segmentData.title}`,
+        description: segmentData.description,
+        sharingScope: "PUBLIC",
+        createdBy: {
+          email: "jongmin.park@woowahan.com"
+        },
+        conditions: segmentData.conditions
+      }
+      
+      console.log('📋 세그먼트 생성 페이로드:', payload)
+      
+      const response = await fetch('https://segmentum-admin-apac-staging.deliveryhero.io/hackdays/api/segments', {
+        method: 'POST',
+        headers: {
+          'x-client-id': 'BUDS',
+          'x-global-entity-id': 'FP_PH',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      
+      console.log('📡 세그먼트 생성 API 응답 상태:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ 세그먼트 생성 API 에러 응답:', errorText)
+        throw new Error(`Segment API Error: ${response.status} ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      console.log('✅ 세그먼트 생성 완료:', data)
+      
+      return {
+        data,
+        success: true,
+        message: '세그먼트가 성공적으로 생성되었습니다.'
+      }
+    } catch (error) {
+      console.error('❌ 세그먼트 생성 실패:', error)
+      throw error
+    }
+  },
+
+  // channelData 배열을 활용한 다중 세그먼트 생성
+  async createSegmentsFromChannelData(channelData: any, campaignObjective: string): Promise<ApiResponse<any[]>> {
+    if (!channelData || !channelData.output) {
+      console.log('⚠️ channelData가 없어서 세그먼트 생성 건너뜀')
+      return {
+        data: [],
+        success: true,
+        message: 'channelData가 없어서 세그먼트 생성을 건너뛰었습니다.'
+      }
+    }
+
+    try {
+      console.log('🎯 channelData를 활용한 다중 세그먼트 생성 시작:', channelData)
+      
+      // channelData에서 채널 배열 파싱
+      let parsedChannels: any[]
+      const outputString = channelData.output
+      
+      const jsonStart = outputString.indexOf('[')
+      const jsonEnd = outputString.lastIndexOf(']')
+      
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        const jsonString = outputString.substring(jsonStart, jsonEnd + 1)
+        parsedChannels = JSON.parse(jsonString)
+      } else {
+        throw new Error('channelData에서 JSON 배열을 찾을 수 없습니다.')
+      }
+      
+      if (!Array.isArray(parsedChannels) || parsedChannels.length === 0) {
+        throw new Error('유효한 채널 배열이 없습니다.')
+      }
+      
+      console.log(`📊 ${parsedChannels.length}개의 채널에 대해 세그먼트 생성 시작`)
+      
+      const segmentResults: any[] = []
+      const errors: string[] = []
+      
+      // 각 채널에 대해 세그먼트 생성 API 호출
+      for (let i = 0; i < parsedChannels.length; i++) {
+        const channel = parsedChannels[i]
+        
+        try {
+          console.log(`🔄 채널 ${i + 1}/${parsedChannels.length} 세그먼트 생성 중:`, channel.name)
+          
+          const segmentData = {
+            title: `${channel.name} - ${campaignObjective.substring(0, 50)}${campaignObjective.length > 50 ? '...' : ''}`,
+            description: `AI가 생성한 ${channel.name} 채널 타겟 세그먼트 (고객 비율: ${(channel.customer_ratio * 100).toFixed(1)}%)`,
+            conditions: channel.conditions || []
+          }
+          
+          const result = await this.createSegment(segmentData)
+          
+          if (result.success) {
+            segmentResults.push({
+              channelName: channel.name,
+              customerRatio: channel.customer_ratio,
+              segmentId: result.data?.id || `segment_${Date.now()}_${i}`,
+              segmentData: result.data,
+              success: true
+            })
+            console.log(`✅ 채널 "${channel.name}" 세그먼트 생성 완료`)
+          } else {
+            throw new Error(result.message || '세그먼트 생성 실패')
+          }
+          
+          // API 호출 간격 (429 에러 방지)
+          if (i < parsedChannels.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000)) // 1초 대기
+          }
+          
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
+          console.error(`❌ 채널 "${channel.name}" 세그먼트 생성 실패:`, errorMessage)
+          
+          errors.push(`${channel.name}: ${errorMessage}`)
+          segmentResults.push({
+            channelName: channel.name,
+            customerRatio: channel.customer_ratio,
+            error: errorMessage,
+            success: false
+          })
+        }
+      }
+      
+      const successCount = segmentResults.filter(r => r.success).length
+      const failureCount = segmentResults.filter(r => !r.success).length
+      
+      console.log(`📈 세그먼트 생성 완료: 성공 ${successCount}개, 실패 ${failureCount}개`)
+      
+      return {
+        data: segmentResults,
+        success: successCount > 0, // 하나라도 성공하면 성공으로 처리
+        message: `${successCount}개 세그먼트 생성 성공, ${failureCount}개 실패`,
+        errors: errors.length > 0 ? errors : undefined
+      }
+      
+    } catch (error) {
+      console.error('❌ 다중 세그먼트 생성 중 전체 오류:', error)
+      throw error
+    }
   }
 }
 

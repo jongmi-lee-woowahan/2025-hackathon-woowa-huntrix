@@ -178,6 +178,7 @@ import { api, type CampaignData, type CampaignExecutionPayload, type CampaignExe
 interface Props {
   open: boolean
   campaignData?: CampaignData
+  channelData?: any // ChannelDistribution의 channelData
   campaignId?: string // API에서 데이터를 가져올 때 사용
   autoLoad?: boolean // 모달이 열릴 때 자동으로 데이터 로드
 }
@@ -230,6 +231,36 @@ const loadCampaignData = async () => {
   }
 }
 
+// channelData를 활용한 세그먼트 생성 API 호출
+const createSegmentsFromChannelData = async (payload: CampaignExecutionPayload) => {
+  if (!props.channelData) {
+    console.log('⚠️ channelData가 없어서 세그먼트 생성 건너뜀')
+    return null
+  }
+
+  try {
+    console.log('🎯 channelData를 활용한 세그먼트 생성 API 호출 시작:', props.channelData)
+    
+    const segmentResponse = await api.createSegmentsFromChannelData(
+      props.channelData, 
+      payload.objective
+    )
+    
+    console.log('📊 세그먼트 생성 API 응답:', segmentResponse)
+    
+    if (segmentResponse.success && segmentResponse.data) {
+      console.log('✅ 세그먼트 생성 완료:', segmentResponse.data)
+      return segmentResponse.data
+    } else {
+      console.warn('⚠️ 세그먼트 생성 API 응답에 문제가 있음:', segmentResponse)
+      return null
+    }
+  } catch (error) {
+    console.error('❌ 세그먼트 생성 API 호출 실패:', error)
+    return null
+  }
+}
+
 // 캠페인 실행
 const handleExecute = async () => {
   if (!campaignData.value) return
@@ -237,6 +268,8 @@ const handleExecute = async () => {
   try {
     isExecuting.value = true
     error.value = null
+
+    console.log('🚀 캠페인 실행 시작')
 
     // 실행 페이로드 준비
     const payload: CampaignExecutionPayload = {
@@ -250,18 +283,37 @@ const handleExecute = async () => {
       executionDate: new Date().toISOString()
     }
 
-    const response = await api.executeCampaign(payload)
+    console.log('📋 캠페인 실행 페이로드:', payload)
 
-    if (response.success && response.data) {
-      emit('execute', response.data)
-      // 성공 메시지 표시 후 모달 닫기
-      setTimeout(() => {
-        emit('close')
-      }, 1500)
-    } else {
-      throw new Error(response.message || '캠페인 실행에 실패했습니다.')
+    // 1. 기본 캠페인 실행 API 호출
+    const campaignResponse = await api.executeCampaign(payload)
+    console.log('📡 기본 캠페인 실행 API 응답:', campaignResponse)
+
+    if (!campaignResponse.success || !campaignResponse.data) {
+      throw new Error(campaignResponse.message || '캠페인 실행에 실패했습니다.')
     }
+
+    // 2. channelData를 활용한 세그먼트 생성 API 호출
+    const segmentResults = await createSegmentsFromChannelData(payload)
+
+    // 3. 세그먼트 생성 결과를 캠페인 응답에 병합
+    const finalResponse = {
+      ...campaignResponse.data,
+      segmentCreationResults: segmentResults,
+      hasSegmentCreation: !!segmentResults && segmentResults.length > 0
+    }
+
+    console.log('✅ 캠페인 실행 완료 (세그먼트 생성 포함):', finalResponse)
+    
+    emit('execute', finalResponse)
+    
+    // 성공 메시지 표시 후 모달 닫기
+    setTimeout(() => {
+      emit('close')
+    }, 1500)
+
   } catch (err) {
+    console.error('❌ 캠페인 실행 중 오류:', err)
     const errorMessage = err instanceof Error ? err.message : '캠페인 실행 중 오류가 발생했습니다.'
     error.value = errorMessage
     emit('error', errorMessage)
