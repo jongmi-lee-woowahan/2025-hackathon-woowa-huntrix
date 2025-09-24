@@ -1,7 +1,7 @@
 <template>
   <div 
     v-if="status !== 'idle'"
-    class="flex items-center space-x-3 p-4 rounded-lg bg-card/50 border border-border opacity-0 animate-in fade-in scale-in-90 duration-300"
+    class="flex items-center space-x-3 rounded-lg p-6 opacity-0 animate-in fade-in scale-in-90 duration-300"
     :data-testid="`ai-indicator-${status}`"
   >
     <div :class="['relative p-2 rounded-full', config.bgColor]">

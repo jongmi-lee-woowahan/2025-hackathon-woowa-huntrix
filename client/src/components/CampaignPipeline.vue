@@ -1,22 +1,70 @@
 <template>
   <div class="min-h-screen bg-background">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
+      <!-- Dropdowns above header -->
+      <div class="relative mb-4">
+        <div 
+          class="absolute right-0 top-0 flex gap-2 z-50"
+          style="right: 1.5rem;"
+        >
+          <!-- Platform Dropdown -->
+          <div class="relative">
+            <button
+              @click="togglePlatformDropdown"
+              class="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-muted transition-colors bg-background"
+            >
+              <span class="text-sm font-medium">{{ selectedPlatform }}</span>
+              <svg 
+                class="w-4 h-4 transition-transform" 
+                :class="{ 'rotate-180': showPlatformDropdown }"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Region Dropdown -->
+          <div class="relative">
+            <button
+              @click="toggleRegionDropdown"
+              class="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-muted transition-colors bg-background"
+            >
+              <span class="text-sm font-medium">{{ selectedRegion }}</span>
+              <svg 
+                class="w-4 h-4 transition-transform" 
+                :class="{ 'rotate-180': showRegionDropdown }"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Header -->
       <div 
         class="text-center mb-12 opacity-0 animate-in fade-in duration-500 py-8"
         style="animation-delay: 0ms"
       >
-        <!-- Title with Logo -->
-        <div class="flex items-center justify-center gap-1 mb-2">
-          <h1 class="text-3xl font-bold text-foreground">
-            SegMA
-          </h1>
-          <!-- Logo -->
-          <img 
-            src="/logo.png" 
-            alt="SegMA Logo" 
-            class="w-12 h-12 object-contain"
-          />
+        <!-- Title with Logo (Centered) -->
+        <div class="flex items-center justify-center mb-2">
+          <div class="flex items-center justify-center gap-1">
+            <h1 class="text-3xl font-bold text-foreground">
+              SegMA
+            </h1>
+            <!-- Logo -->
+            <img 
+              src="/logo.png" 
+              alt="SegMA Logo" 
+              class="w-12 h-12 object-contain"
+            />
+          </div>
         </div>
         
         <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -124,6 +172,80 @@
           :auto-load="false"
         />
     </div>
+
+    <!-- Platform Dropdown Modal -->
+    <div 
+      v-if="showPlatformDropdown"
+      class="fixed inset-0 z-[999999]"
+      @click="showPlatformDropdown = false"
+    >
+      <div 
+        class="w-64 bg-background border border-border rounded-lg shadow-xl"
+        style="position: absolute; top: 5rem; right: 10rem;"
+        @click.stop
+      >
+        <!-- Platform List -->
+        <div class="max-h-60 overflow-y-auto">
+          <button
+            v-for="platform in platforms"
+            :key="platform"
+            @click="selectPlatform(platform)"
+            :disabled="platform !== 'Foodpanda'"
+            class="w-full px-3 py-2 text-left text-sm transition-colors"
+            :class="{ 
+              'bg-primary text-primary-foreground': platform === selectedPlatform,
+              'hover:bg-muted': platform === 'Foodpanda',
+              'opacity-50 cursor-not-allowed': platform !== 'Foodpanda'
+            }"
+          >
+            {{ platform }}
+            <span v-if="platform !== 'Foodpanda'" class="text-xs text-muted-foreground ml-2">(Coming Soon)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Region Dropdown Modal -->
+    <div 
+      v-if="showRegionDropdown"
+      class="fixed inset-0 z-[999999]"
+      @click="showRegionDropdown = false"
+    >
+      <div 
+        class="w-64 bg-background border border-border rounded-lg shadow-xl"
+        style="position: absolute; top: 5rem; right: 2rem;"
+        @click.stop
+      >
+        <!-- Search Bar -->
+        <div class="p-3 border-b border-border">
+          <input
+            v-model="regionSearch"
+            type="text"
+            placeholder="Search"
+            class="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+        
+        <!-- Region List -->
+        <div class="max-h-60 overflow-y-auto">
+          <button
+            v-for="region in filteredRegions"
+            :key="region"
+            @click="selectRegion(region)"
+            :disabled="region !== 'Philippines'"
+            class="w-full px-3 py-2 text-left text-sm transition-colors"
+            :class="{ 
+              'bg-primary text-primary-foreground': region === selectedRegion,
+              'hover:bg-muted': region === 'Philippines',
+              'opacity-50 cursor-not-allowed': region !== 'Philippines'
+            }"
+          >
+            {{ region }}
+            <span v-if="region !== 'Philippines'" class="text-xs text-muted-foreground ml-2">(Coming Soon)</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -178,6 +300,29 @@ const showSummaryModal = ref(false)
 const huntrixRecommendations = ref<HuntrixCampaignRecommendation[]>([])
 const isLoadingRecommendations = ref(false)
 
+// Region selection state
+const selectedRegion = ref('Philippines')
+const showRegionDropdown = ref(false)
+const regionSearch = ref('')
+
+// Platform selection state
+const selectedPlatform = ref('Foodpanda')
+const showPlatformDropdown = ref(false)
+
+// Available platforms
+const platforms = [
+  'Foodpanda', 'Grab', 'Lazada', 'Shopee', 'Tokopedia',
+  'Zomato', 'Deliveroo', 'Uber Eats', 'DoorDash', 'Rappi'
+]
+
+// Available regions
+const regions = [
+  'Laos', 'Malaysia', 'Myanmar', 'Pakistan', 'Philippines', 
+  'Romania', 'Singapore', 'Taiwan', 'Thailand', 'Vietnam',
+  'Indonesia', 'Japan', 'South Korea', 'China', 'India',
+  'Australia', 'New Zealand', 'Canada', 'United States', 'United Kingdom'
+]
+
 // Constants
 const stepOrder: PipelineStep[] = ['segmentation', 'metrics', 'channels']
 
@@ -187,6 +332,48 @@ const canGoBack = computed(() => currentStep.value !== 'objective')
 const selectedSegmentNames = computed(() => 
   selectedSegments.value.map(s => s.name).join(', ')
 )
+
+// Filtered regions based on search
+const filteredRegions = computed(() => {
+  if (!regionSearch.value) return regions
+  return regions.filter(region => 
+    region.toLowerCase().includes(regionSearch.value.toLowerCase())
+  )
+})
+
+// Region selection methods
+const toggleRegionDropdown = () => {
+  showRegionDropdown.value = !showRegionDropdown.value
+  if (showRegionDropdown.value) {
+    regionSearch.value = ''
+  }
+}
+
+const selectRegion = (region: string) => {
+  selectedRegion.value = region
+  showRegionDropdown.value = false
+  regionSearch.value = ''
+  console.log('Selected region:', region)
+}
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event: Event) => {
+  const target = event.target as HTMLElement
+  if (!target.closest('.relative')) {
+    showRegionDropdown.value = false
+  }
+}
+
+// Platform selection methods
+const togglePlatformDropdown = () => {
+  showPlatformDropdown.value = !showPlatformDropdown.value
+}
+
+const selectPlatform = (platform: string) => {
+  selectedPlatform.value = platform
+  showPlatformDropdown.value = false
+  console.log('Selected platform:', platform)
+}
 
 // Analytics API 응답 데이터 저장
 const analyticsData = ref<any>(null)
