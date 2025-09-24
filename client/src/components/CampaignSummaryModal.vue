@@ -126,9 +126,9 @@
           <div class="grid grid-cols-3 gap-4">
             <div class="text-center p-3 bg-background/50 rounded-lg">
               <div class="text-2xl font-bold text-primary">
-                {{ campaignData.metrics.expectedCTR }}
+                {{ campaignData.metrics.expectedRevisitRate }}
               </div>
-              <div class="text-sm text-muted-foreground">클릭률</div>
+              <div class="text-sm text-muted-foreground">재방문율</div>
             </div>
             <div class="text-center p-3 bg-background/50 rounded-lg">
               <div class="text-2xl font-bold text-primary">

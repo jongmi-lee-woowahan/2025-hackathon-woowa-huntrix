@@ -438,34 +438,58 @@ export const campaignApi = {
         if (!response.ok) {
           const errorText = await response.text()
           console.error(`❌ Huntrix Channel API 에러 응답 (시도 ${attempt}):`, errorText)
-          throw new Error(`Huntrix Channel API Error: ${response.status} ${response.statusText}`)
+          lastError = new Error(`Huntrix Channel API Error: ${response.status} ${response.statusText}`)
+          
+          // 실패 시에만 재시도, 마지막 시도면 에러 throw
+          if (attempt === MAX_RETRIES) {
+            throw lastError
+          }
+          console.log(`⚠️ API 호출 실패, ${attempt + 1}번째 시도를 진행합니다...`)
+          continue // 다음 시도로
         }
 
         const data = await response.json()
         console.log(`✅ Huntrix Channel API 응답 데이터 (시도 ${attempt}):`, data)
+        console.log(`🔍 응답 데이터 타입:`, typeof data)
+        console.log(`🔍 응답 데이터 배열 여부:`, Array.isArray(data))
+        
+        // 배열 형태 응답과 단일 객체 응답 모두 지원
+        let outputString: string | null = null
+        
+        if (Array.isArray(data) && data.length > 0 && data[0].output) {
+          // 배열 형태: [{"output": "..."}]
+          outputString = data[0].output
+          console.log(`📥 배열 형태 응답에서 output 추출됨 (길이: ${outputString ? outputString.length : 0})`)
+        } else if (data && typeof data === 'object' && data.output) {
+          // 단일 객체 형태: {"output": "..."}
+          outputString = data.output
+          console.log(`📥 객체 형태 응답에서 output 추출됨 (길이: ${outputString ? outputString.length : 0})`)
+        }
         
         // output 필드 유효성 검사
-        if (!data.output || typeof data.output !== 'string' || data.output.trim().length < 10) {
+        if (!outputString || typeof outputString !== 'string' || outputString.trim().length < 10) {
           console.warn(`⚠️ Channel API 응답에 유효한 output이 없음 (시도 ${attempt}):`, {
-            hasOutput: !!data.output,
-            outputType: typeof data.output,
-            outputLength: data.output?.length || 0,
-            fullResponse: data
+            isArray: Array.isArray(data),
+            arrayLength: Array.isArray(data) ? data.length : 'N/A',
+            firstElementOutput: Array.isArray(data) && data[0] ? !!data[0].output : 'N/A',
+            directOutput: !!data?.output,
+            outputString: outputString,
+            outputType: typeof outputString,
+            outputLength: outputString?.length || 0
           })
           
+          lastError = new Error('Channel API가 유효한 데이터를 반환하지 않았습니다.')
           if (attempt === MAX_RETRIES) {
-            throw new Error('Channel API가 유효한 데이터를 반환하지 않았습니다.')
+            throw lastError
           }
-          
-          console.log(`🔄 ${2}초 후 재시도합니다... (Channel output 검증 실패)`)
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          continue
+          console.log(`⚠️ 유효하지 않은 응답, ${attempt + 1}번째 시도를 진행합니다...`)
+          continue // 다음 시도로
         }
         
         // JSON 배열 파싱 및 채널 데이터 검증
         try {
           let parsedChannels: any[]
-          const outputString = data.output
+          // 이미 추출된 outputString 사용
           
           // JSON 배열 추출 (설명 텍스트와 함께 있을 수 있음)
           const jsonStart = outputString.indexOf('[')
@@ -483,52 +507,87 @@ export const campaignApi = {
             throw new Error('유효한 채널 배열이 없습니다.')
           }
           
-          // 필수 필드 검증
+          // 필수 필드 검증 (더 관대한 검증으로 변경)
           let validationPassed = true
           const validationResults: any = {}
           
-          for (const [index, channel] of parsedChannels.entries()) {
+          for (let index = 0; index < parsedChannels.length; index++) {
+            const channel = parsedChannels[index]
             const channelValidation: any = {}
             
+            // name 필드 검증
             if (!channel.name || typeof channel.name !== 'string') {
-              validationPassed = false
+              console.warn(`Channel ${index}: name field missing or invalid`, channel.name)
               channelValidation.name = 'Missing or invalid name'
+              // name이 없어도 진행
             }
             
-            if (typeof channel.customer_ratio !== 'number' || channel.customer_ratio <= 0) {
-              validationPassed = false
+            // customer_ratio 필드 검증 (0일 수도 있으므로 >= 0으로 변경)
+            if (typeof channel.customer_ratio !== 'number' || channel.customer_ratio < 0) {
+              console.warn(`Channel ${index}: customer_ratio field missing or invalid`, channel.customer_ratio)
               channelValidation.customer_ratio = { value: channel.customer_ratio, valid: false }
+              // customer_ratio가 없어도 진행
             }
             
-            if (!Array.isArray(channel.conditions) || channel.conditions.length === 0) {
-              validationPassed = false
+            // description 필드 검증 (선택적)
+            if (channel.description && typeof channel.description !== 'string') {
+              console.warn(`Channel ${index}: description field invalid`, channel.description)
+              channelValidation.description = 'Invalid description'
+            }
+            
+            // lables 필드 검증 (선택적, API 오타 고려)
+            if (channel.lables && !Array.isArray(channel.lables)) {
+              console.warn(`Channel ${index}: lables field invalid`, channel.lables)
+              channelValidation.lables = 'Invalid lables'
+            }
+            
+            // customer_cnt 필드 검증 (선택적)
+            if (channel.customer_cnt && typeof channel.customer_cnt !== 'number') {
+              console.warn(`Channel ${index}: customer_cnt field invalid`, channel.customer_cnt)
+              channelValidation.customer_cnt = 'Invalid customer_cnt'
+            }
+            
+            // conditions 필드는 선택적으로 변경 (없어도 진행)
+            if (channel.conditions && (!Array.isArray(channel.conditions) || channel.conditions.length === 0)) {
+              console.warn(`Channel ${index}: conditions field missing or empty`, channel.conditions)
               channelValidation.conditions = 'Missing or empty conditions'
             }
             
             validationResults[`channel_${index}`] = channelValidation
           }
           
-          if (!validationPassed) {
-            console.warn(`⚠️ Channel API 응답 데이터 검증 실패 (시도 ${attempt}):`, {
+          // 검증 결과를 로그로만 출력하고 계속 진행
+          if (Object.keys(validationResults).some(key => Object.keys(validationResults[key]).length > 0)) {
+            console.warn(`⚠️ Channel API 응답 데이터 검증 경고 (시도 ${attempt}):`, {
               parsedChannels: parsedChannels,
               validationResults: validationResults
             })
-            
-            if (attempt === MAX_RETRIES) {
-              throw new Error(`Channel API 응답에 유효한 채널 데이터가 없습니다. 검증 결과: ${JSON.stringify(validationResults)}`)
-            }
-            
-            console.log(`🔄 ${2}초 후 재시도합니다... (Channel 데이터 검증 실패)`)
-            await new Promise(resolve => setTimeout(resolve, 2000))
-            continue
           }
           
-          console.log(`✅ Channel 데이터 검증 성공 (시도 ${attempt}):`, validationResults)
+          // 성공적으로 파싱된 데이터 반환 (검증 실패와 관계없이)
+          console.log(`✅ Huntrix Channel API 성공 (시도 ${attempt}):`, {
+            channelCount: parsedChannels.length,
+            channels: parsedChannels.map(ch => ({ 
+              name: ch.name, 
+              customer_ratio: ch.customer_ratio, 
+              customer_cnt: ch.customer_cnt,
+              description: ch.description?.substring(0, 50) + '...',
+              lables: ch.lables 
+            }))
+          })
+
+          return {
+            success: true,
+            data: {
+              output: outputString  // 항상 일관된 구조로 반환
+            },
+            message: `채널 최적화 완료: ${parsedChannels.length}개 채널 분석`
+          }
           
         } catch (parseError) {
           console.warn(`⚠️ Channel JSON 파싱 실패 (시도 ${attempt}):`, {
             error: parseError,
-            outputSample: data.output.substring(0, 500) + '...'
+            outputSample: outputString.substring(0, 500) + '...'
           })
           
           if (attempt === MAX_RETRIES) {
@@ -540,9 +599,12 @@ export const campaignApi = {
           continue
         }
         
+        // 일관된 응답 구조로 반환 (배열/객체 형태에 관계없이)
         return {
-          data,
           success: true,
+          data: {
+            output: outputString  // 추출된 output 문자열
+          },
           message: 'Huntrix 채널 최적화가 완료되었습니다.'
         }
       } catch (error) {
@@ -571,112 +633,165 @@ export const campaignApi = {
     throw lastError || new Error('채널 최적화 API 호출에 실패했습니다.')
   },
 
-  // Huntrix Agent - AI 기반 캠페인 추천 (최대 5분 대기)
+  // Huntrix Agent-1 - AI 기반 캠페인 추천 (최대 3번 재시도, name/description 검증)
   async getHuntrixRecommendations(message: string): Promise<ApiResponse<HuntrixCampaignRecommendation[]>> {
-    try {
-      console.log('🚀 Huntrix API 호출 시작:', { message })
-      console.log('⏰ 최대 5분간 AI 분석이 진행됩니다...')
-      
-      // 5분 (300초) 타임아웃 설정
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => {
-        controller.abort()
-      }, 5 * 60 * 1000) // 5분
-      
-      const response = await fetch('https://buds-n8n.willing-snipe.dp.deliveryhero.io/webhook/huntrix-agent-1', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors',
-        signal: controller.signal, // AbortController 연결
-        body: JSON.stringify({ message })
-      })
-
-      clearTimeout(timeoutId) // 성공시 타임아웃 해제
-      console.log('📡 Huntrix API 응답 상태:', response.status)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ Huntrix API 에러 응답:', errorText)
-        throw new Error(`Huntrix API Error: ${response.status} ${response.statusText}`)
-      }
-
-      const rawData = await response.json() as HuntrixApiResponse
-      console.log('✅ Huntrix API 원본 응답:', rawData)
-      
-      // output 필드에서 JSON 문자열 추출 및 파싱
-      if (!rawData.output) {
-        throw new Error('Huntrix API 응답에 output 필드가 없습니다.')
-      }
-      
-      console.log('📄 output 필드 (마크다운 코드블록):', rawData.output)
-      
-      // output 필드에서 ```json과 ``` 사이의 JSON만 추출
-      let jsonString = rawData.output
-      console.log('📄 원본 output:', rawData.output)
-      console.log('📄 원본 output 길이:', jsonString.length)
-      console.log('📄 output trimmed 길이:', jsonString.trim().length)
-      
-      // 빈 응답 체크
-      if (!jsonString || jsonString.trim().length <= 10) {
-        console.log('⚠️ API 응답이 비어있거나 너무 짧음:', jsonString)
-        throw new Error('Huntrix API가 빈 응답을 반환했습니다. 나중에 다시 시도해주세요.')
-      }
-      
-      // ```json과 ``` 사이의 내용 추출
-      const jsonStart = jsonString.indexOf('```json\n')
-      const jsonEnd = jsonString.lastIndexOf('\n```')
-      
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        jsonString = jsonString.substring(jsonStart + 8, jsonEnd) // '```json\n' 길이는 8
-        console.log('🧹 추출된 JSON 문자열 길이:', jsonString.length)
-        console.log('🔍 JSON 시작 부분:', jsonString.substring(0, 200) + '...')
-      } else {
-        console.log('⚠️ JSON 코드 블록을 찾을 수 없음')
-        console.log('🔍 전체 output 내용:', jsonString)
-        throw new Error('Huntrix API 응답에서 JSON 데이터를 찾을 수 없습니다.')
-      }
-      
-      let parsedData: HuntrixCampaignRecommendation[]
+    const MAX_RETRIES = 3
+    let lastError: Error | null = null
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        parsedData = JSON.parse(jsonString)
-        console.log('🔄 파싱된 데이터:', parsedData)
-      } catch (parseError) {
-        console.error('❌ JSON 파싱 실패:', parseError)
-        console.error('파싱 시도한 문자열:', jsonString.substring(0, 500))
-        throw new Error('Huntrix API 응답의 output 필드를 JSON으로 파싱할 수 없습니다.')
-      }
-      
-      // 응답 데이터 검증
-      if (!Array.isArray(parsedData)) {
-        console.error('⚠️ 파싱된 데이터가 배열이 아님:', parsedData)
-        throw new Error('Huntrix API의 output 데이터가 배열 형태가 아닙니다.')
-      }
+        console.log(`🚀 Huntrix Agent-1 API 호출 시작 (${attempt}/${MAX_RETRIES}):`, { message })
+        console.log('⏰ 최대 5분간 AI 분석이 진행됩니다...')
+        
+        // 5분 (300초) 타임아웃 설정
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => {
+          controller.abort()
+        }, 5 * 60 * 1000) // 5분
+        
+        const response = await fetch('https://buds-n8n.willing-snipe.dp.deliveryhero.io/webhook/huntrix-agent-1', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          mode: 'cors',
+          signal: controller.signal, // AbortController 연결
+          body: JSON.stringify({ message })
+        })
 
-      console.log('📊 최종 데이터:', parsedData)
-      console.log('📈 캠페인 개수:', parsedData.length)
+        clearTimeout(timeoutId) // 성공시 타임아웃 해제
+        console.log(`📡 Huntrix Agent-1 API 응답 상태 (시도 ${attempt}):`, response.status)
 
-      return {
-        data: parsedData,
-        success: true,
-        message: `AI가 ${parsedData.length}개의 캠페인을 추천했습니다.`
-      }
-    } catch (error) {
-      console.error('🚨 Huntrix API request failed:', error)
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`❌ Huntrix Agent-1 API 에러 응답 (시도 ${attempt}):`, errorText)
+          lastError = new Error(`Huntrix Agent-1 API Error: ${response.status} ${response.statusText}`)
+          
+          if (attempt === MAX_RETRIES) {
+            throw lastError
+          }
+          console.log(`⚠️ API 호출 실패, ${attempt + 1}번째 시도를 진행합니다...`)
+          continue
+        }
+
+        const rawData = await response.json() as HuntrixApiResponse
+        console.log(`✅ Huntrix Agent-1 API 원본 응답 (시도 ${attempt}):`, rawData)
       
-      // AbortController에 의한 타임아웃
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('AI 분석이 5분을 초과하여 중단되었습니다. 다시 시도해주세요.')
+        // output 필드에서 JSON 문자열 추출 및 파싱
+        if (!rawData.output) {
+          lastError = new Error('Huntrix Agent-1 API 응답에 output 필드가 없습니다.')
+          if (attempt === MAX_RETRIES) {
+            throw lastError
+          }
+          console.log(`⚠️ output 필드 누락, ${attempt + 1}번째 시도를 진행합니다...`)
+          continue
+        }
+        
+        console.log(`📄 output 필드 (시도 ${attempt}):`, rawData.output)
+        
+        // output 필드에서 ```json과 ``` 사이의 JSON만 추출
+        let jsonString = rawData.output
+        
+        // 빈 응답 체크
+        if (jsonString.trim().length === 0) {
+          lastError = new Error('Huntrix Agent-1 API에서 빈 응답을 받았습니다.')
+          if (attempt === MAX_RETRIES) {
+            throw lastError
+          }
+          console.log(`⚠️ 빈 응답 수신, ${attempt + 1}번째 시도를 진행합니다...`)
+          continue
+        }
+        
+        // 마크다운 코드 블록 제거
+        const jsonStart = jsonString.indexOf('```json\n')
+        const jsonEnd = jsonString.lastIndexOf('\n```')
+        
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          jsonString = jsonString.substring(jsonStart + 8, jsonEnd)
+          console.log(`📄 추출된 JSON 문자열 (시도 ${attempt}):`, jsonString)
+        } else {
+          console.log(`⚠️ 마크다운 코드 블록을 찾을 수 없음 (시도 ${attempt}), 전체 output을 JSON으로 파싱 시도`)
+        }
+        
+        // JSON 파싱
+        let parsedData: HuntrixCampaignRecommendation[]
+        try {
+          parsedData = JSON.parse(jsonString) as HuntrixCampaignRecommendation[]
+        } catch (parseError) {
+          lastError = new Error(`JSON 파싱 실패: ${parseError instanceof Error ? parseError.message : '알 수 없는 오류'}`)
+          if (attempt === MAX_RETRIES) {
+            throw lastError
+          }
+          console.log(`⚠️ JSON 파싱 실패 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
+          continue
+        }
+        
+        console.log(`📊 파싱된 데이터 (시도 ${attempt}):`, parsedData)
+        
+        if (!Array.isArray(parsedData)) {
+          lastError = new Error('파싱된 데이터가 배열이 아닙니다.')
+          if (attempt === MAX_RETRIES) {
+            throw lastError
+          }
+          console.log(`⚠️ 데이터가 배열이 아님 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
+          continue
+        }
+
+        // name, description 필드 검증
+        const invalidSegments = parsedData.filter(segment => 
+          !segment.name || !segment.description || 
+          typeof segment.name !== 'string' || typeof segment.description !== 'string' ||
+          segment.name.trim().length === 0 || segment.description.trim().length === 0
+        )
+
+        if (invalidSegments.length > 0) {
+          console.warn(`⚠️ name 또는 description이 누락된 세그먼트 발견 (시도 ${attempt}):`, {
+            invalidCount: invalidSegments.length,
+            totalCount: parsedData.length,
+            invalidSegments: invalidSegments.map((seg, idx) => ({
+              index: idx,
+              name: seg.name,
+              description: seg.description,
+              hasName: !!seg.name,
+              hasDescription: !!seg.description
+            }))
+          })
+          
+          lastError = new Error(`${invalidSegments.length}개 세그먼트에서 name 또는 description이 누락되었습니다.`)
+          if (attempt === MAX_RETRIES) {
+            throw lastError
+          }
+          console.log(`⚠️ 필수 필드 누락으로 ${attempt + 1}번째 시도를 진행합니다...`)
+          continue
+        }
+
+        console.log(`📈 유효한 캠페인 개수 (시도 ${attempt}):`, parsedData.length)
+        console.log(`✅ 모든 세그먼트에 name, description 포함 확인`)
+
+        return {
+          data: parsedData,
+          success: true,
+          message: `AI가 ${parsedData.length}개의 캠페인을 추천했습니다.`
+        }
+      } catch (error) {
+        console.error('🚨 Huntrix API request failed:', error)
+        
+        // AbortController에 의한 타임아웃
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new Error('AI 분석이 5분을 초과하여 중단되었습니다. 다시 시도해주세요.')
+        }
+        
+        // 네트워크 에러
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인해주세요.')
+        }
+        
+        throw error
       }
-      
-      // 네트워크 에러
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인해주세요.')
-      }
-      
-      throw error
     }
+    
+    // for 루프가 끝나면 마지막 에러를 던짐
+    throw lastError || new Error('모든 재시도가 실패했습니다.')
   },
 
   // 세그먼트 생성 API

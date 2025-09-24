@@ -28,9 +28,10 @@
         :class="[
           'w-full py-2 px-4 rounded-md disabled:opacity-50',
           aiStatus === 'error' 
-            ? 'bg-red-500 text-white hover:bg-red-600' 
+            ? 'text-white hover:opacity-90 transition-opacity' 
             : 'bg-primary text-primary-foreground hover:bg-primary/90'
         ]"
+        :style="aiStatus === 'error' ? { backgroundColor: '#f76649' } : {}"
       >
         <div v-if="isProcessing" class="flex items-center justify-center space-x-2">
           <Sparkles class="h-4 w-4 animate-spin" />
