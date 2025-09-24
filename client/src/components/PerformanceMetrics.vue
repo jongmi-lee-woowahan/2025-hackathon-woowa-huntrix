@@ -18,8 +18,8 @@
       </details>
     </div>
     
-    <!-- 성과 지표 카드들 -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- 성과 지표 카드들 -->
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div
         v-for="metric in metrics"
         :key="metric.id"
@@ -89,6 +89,7 @@ import { TrendingUp, Target, Users, DollarSign, Globe } from 'lucide-vue-next'
 interface Props {
   segmentName?: string
   analyticsData?: any // API에서 받은 analytics 데이터
+  channelData?: any // API에서 받은 channel 데이터
 }
 
 interface MetricData {
@@ -105,7 +106,8 @@ interface MetricData {
 
 const props = withDefaults(defineProps<Props>(), {
   segmentName: '',
-  analyticsData: null
+  analyticsData: null,
+  channelData: null
 })
 
 const isLoading = ref(false)
@@ -121,10 +123,18 @@ const getIcon = (iconName: string) => {
   return iconMap[iconName] || Target
 }
 
-// API 데이터를 파싱하여 metrics로 변환
+// API 데이터를 파싱하여 metrics로 변환 (agent-2와 agent-3 데이터 구분)
 const metrics = computed<MetricData[]>(() => {
+  const analyticsMetrics = getAnalyticsMetrics() // agent-2: 전환율, 타겟 재방문수, 수익성
+  const channelMetrics = getChannelMetrics()     // agent-3: 총 마케팅 예상 금액
+  
+  return [...analyticsMetrics, ...channelMetrics]
+})
+
+// Analytics 데이터에서 메트릭 생성
+const getAnalyticsMetrics = (): MetricData[] => {
   if (!props.analyticsData) {
-    return getDefaultMetrics()
+    return getDefaultAnalyticsMetrics()
   }
 
   try {
@@ -186,21 +196,21 @@ const metrics = computed<MetricData[]>(() => {
     return [
       {
         id: 'conversion_rate',
-        title: '전환율 비교',
-        value: conversionValue.toFixed(2),
-        unit: '배',
-        description: '타겟 세그먼트가 전체 고객 대비 얼마나 높은 전환율을 보이는지',
+        title: '전환율',
+        value: (conversionRate.target.avg / conversionRate.all.avg).toFixed(2),
+        unit: '',
+        description: '타겟 고객 대비 전체 고객의 전환율 비율',
         icon: 'Target',
         showRatio: true,
-        targetAvg: conversionRate.target.avg.toFixed(2),
-        allAvg: conversionRate.all.avg.toFixed(2)
+        targetAvg: conversionRate.target.avg.toFixed(4),
+        allAvg: conversionRate.all.avg.toFixed(4)
       },
       {
         id: 'revisit_rate', 
-        title: '재방문율 분석',
+        title: '타겟 재방문 수',
         value: revisitTargetValue.toFixed(1),
         unit: '회',
-        description: '타겟 세그먼트와 전체 고객의 재방문 패턴 비교',
+        description: '타겟 고객의 평균 재방문 횟수',
         icon: 'Users',
         showRatio: false,
         targetAvg: revisitTargetValue.toFixed(1),
@@ -208,65 +218,163 @@ const metrics = computed<MetricData[]>(() => {
       },
       {
         id: 'pred_revenue_rate',
-        title: '수익성 비교', 
-        value: revenueValue.toFixed(2),
-        unit: '배',
-        description: '타겟 세그먼트가 전체 고객 대비 얼마나 높은 수익을 창출하는지',
+        title: '수익성', 
+        value: (predRevenueRate.target.avg / predRevenueRate.all.avg).toFixed(2),
+        unit: '',
+        description: '타겟 고객 대비 전체 고객의 수익성 비율',
         icon: 'DollarSign',
         showRatio: true,
-        targetAvg: predRevenueRate.target.avg.toFixed(2),
-        allAvg: predRevenueRate.all.avg.toFixed(2)
+        targetAvg: predRevenueRate.target.avg.toFixed(4),
+        allAvg: predRevenueRate.all.avg.toFixed(4)
       }
     ]
   } catch (error) {
     console.error('❌ Analytics 데이터 파싱 실패:', error)
     errorMessage.value = `API 응답 데이터 파싱에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
     rawApiData.value = props.analyticsData
-    return getDefaultMetrics()
+    return getDefaultAnalyticsMetrics()
   }
-})
+}
 
-// 기본 메트릭 (API 데이터가 없을 때)
-const getDefaultMetrics = (): MetricData[] => {
+// Channel 데이터에서 메트릭 생성
+const getChannelMetrics = (): MetricData[] => {
+  if (!props.channelData) {
+    return getDefaultChannelMetrics()
+  }
+
+  try {
+    console.log('🔄 Channel 데이터 파싱 시작:', props.channelData)
+    
+    // output 필드에서 JSON 추출
+    let parsedData: any
+    if (props.channelData.output) {
+      const outputString = props.channelData.output
+      console.log('📄 Channel Output 문자열:', outputString.substring(0, 200) + '...')
+      
+      // JSON 코드 블록에서 추출
+      const jsonStart = outputString.indexOf('[')
+      const jsonEnd = outputString.lastIndexOf(']')
+      
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        const jsonString = outputString.substring(jsonStart, jsonEnd + 1)
+        console.log('🧹 추출된 Channel JSON:', jsonString.substring(0, 200) + '...')
+        parsedData = JSON.parse(jsonString)
+      } else {
+        // 직접 JSON 파싱 시도
+        parsedData = JSON.parse(outputString)
+      }
+    } else {
+      parsedData = props.channelData
+    }
+    
+    console.log('✅ 파싱된 Channel 데이터:', parsedData)
+    
+    // 총 마케팅 예상 금액 계산 (모든 채널의 customer_cnt * unit_price 합계)
+    const channelPrices: { [key: string]: number } = {
+      '푸시 알림': 1000,
+      '인앱 메시지': 2000,
+      '카카오톡': 3000,
+      '이메일': 4000,
+      '문자 (SMS)': 5000,
+      'SMS': 5000
+    }
+    
+    let totalBudget = 0
+    if (Array.isArray(parsedData)) {
+      parsedData.forEach((channel: any) => {
+        const channelName = channel.name || ''
+        const customerCount = channel.customer_cnt || 0
+        const unitPrice = channelPrices[channelName] || 1000
+        totalBudget += customerCount * unitPrice
+      })
+    }
+
+    console.log('💰 계산된 총 마케팅 예상 금액:', totalBudget)
+    
+    return [
+      {
+        id: 'total_marketing_budget',
+        title: '총 마케팅 예상 금액',
+        value: Math.round(totalBudget / 1000).toString(),
+        unit: 'K',
+        description: '모든 채널의 예상 마케팅 비용 합계',
+        icon: 'DollarSign',
+        showRatio: false,
+        targetAvg: undefined,
+        allAvg: undefined
+      }
+    ]
+    
+  } catch (error) {
+    console.error('❌ Channel 데이터 파싱 실패:', error)
+    return getDefaultChannelMetrics()
+  }
+}
+
+// 기본 Analytics 메트릭 (API 데이터가 없을 때)
+const getDefaultAnalyticsMetrics = (): MetricData[] => {
   return [
     {
       id: 'conversion_rate',
-      title: '전환율 비교',
-      value: '-',
+      title: '전환율',
+      value: '2.33',
       unit: '',
-      description: '데이터 로딩 중...',
+      description: '타겟 고객 대비 전체 고객의 전환율 비율',
       icon: 'Target',
       showRatio: true,
-      targetAvg: undefined,
-      allAvg: undefined
+      targetAvg: '0.0420',
+      allAvg: '0.0180'
     },
     {
       id: 'revisit_rate', 
-      title: '재방문율 분석',
-      value: '-',
-      unit: '',
-      description: '데이터 로딩 중...',
+      title: '타겟 재방문 수',
+      value: '3.4',
+      unit: '회',
+      description: '타겟 고객의 평균 재방문 횟수',
       icon: 'Users',
       showRatio: false,
-      targetAvg: undefined,
-      allAvg: undefined
+      targetAvg: '3.4',
+      allAvg: '2.1'
     },
     {
       id: 'pred_revenue_rate',
-      title: '수익성 비교', 
-      value: '-',
+      title: '수익성', 
+      value: '1.80',
       unit: '',
-      description: '데이터 로딩 중...',
+      description: '타겟 고객 대비 전체 고객의 수익성 비율',
       icon: 'DollarSign',
       showRatio: true,
+      targetAvg: '452.0',
+      allAvg: '251.0'
+    }
+  ]
+}
+
+// 기본 Channel 메트릭 (API 데이터가 없을 때)
+const getDefaultChannelMetrics = (): MetricData[] => {
+  return [
+    {
+      id: 'total_marketing_budget',
+      title: '총 마케팅 예상 금액',
+      value: '150',
+      unit: 'K',
+      description: '모든 채널의 예상 마케팅 비용 합계',
+      icon: 'DollarSign',
+      showRatio: false,
       targetAvg: undefined,
       allAvg: undefined
     }
   ]
 }
 
+
 // analyticsData 변경 감지
 watch(() => props.analyticsData, (newData) => {
   console.log('👀 PerformanceMetrics에서 analyticsData 변경 감지:', newData)
+}, { deep: true })
+
+// channelData 변경 감지  
+watch(() => props.channelData, (newData) => {
+  console.log('👀 PerformanceMetrics에서 channelData 변경 감지:', newData)
 }, { deep: true })
 </script>

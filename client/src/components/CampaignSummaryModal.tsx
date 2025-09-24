@@ -9,7 +9,7 @@ interface CampaignData {
   objective: string;
   segments: string[];
   metrics: {
-    expectedCTR: string;
+    expectedRevisitRate: string;
     expectedConversion: string;
     expectedROI: string;
   };
@@ -109,9 +109,9 @@ export default function CampaignSummaryModal({ open, onClose, onExecute, campaig
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center p-3 bg-background/50 rounded-lg">
                     <div className="text-2xl font-bold text-primary">
-                      {campaignData.metrics.expectedCTR}
+                      {campaignData.metrics.expectedRevisitRate}
                     </div>
-                    <div className="text-sm text-muted-foreground">클릭률</div>
+                    <div className="text-sm text-muted-foreground">타겟 재방문수</div>
                   </div>
                   <div className="text-center p-3 bg-background/50 rounded-lg">
                     <div className="text-2xl font-bold text-primary">
@@ -123,7 +123,7 @@ export default function CampaignSummaryModal({ open, onClose, onExecute, campaig
                     <div className="text-2xl font-bold text-primary">
                       {campaignData.metrics.expectedROI}
                     </div>
-                    <div className="text-sm text-muted-foreground">ROI</div>
+                    <div className="text-sm text-muted-foreground">수익성</div>
                   </div>
                 </div>
               </CardContent>
