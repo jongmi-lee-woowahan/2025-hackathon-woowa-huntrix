@@ -600,12 +600,24 @@ const handleMetricsNext = async () => {
         
         const channelResponse = await callChannelAPI(allConditions)
         console.log('🎯 Channel 응답 (MetricsNext):', channelResponse)
+        console.log('🔍 channelResponse.data 구조 분석:')
+        console.log('  - success:', channelResponse.success)
+        console.log('  - data 존재 여부:', !!channelResponse.data)
+        console.log('  - data 타입:', typeof channelResponse.data)
+        console.log('  - data 키들:', channelResponse.data ? Object.keys(channelResponse.data) : 'N/A')
+        console.log('  - data.output 존재 여부:', !!(channelResponse.data && channelResponse.data.output))
+        console.log('  - data.output 타입:', channelResponse.data?.output ? typeof channelResponse.data.output : 'N/A')
         
         clearInterval(progressInterval)
         
         if (channelResponse.success && channelResponse.data) {
           channelData.value = channelResponse.data
-          console.log('💾 Channel 데이터 저장됨 (MetricsNext):', channelData.value)
+          console.log('💾 Channel 데이터 저장됨 (MetricsNext):', {
+            type: typeof channelData.value,
+            keys: channelData.value ? Object.keys(channelData.value) : 'N/A',
+            hasOutput: !!(channelData.value && channelData.value.output),
+            outputType: channelData.value?.output ? typeof channelData.value.output : 'N/A'
+          })
           
           let successMessage = '채널 최적화가 완료되었습니다!'
           if (retryCount > 0) {

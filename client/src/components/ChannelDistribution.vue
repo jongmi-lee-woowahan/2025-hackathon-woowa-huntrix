@@ -223,17 +223,31 @@ const initializeChannels = () => {
   rawChannelData.value = null
   
   try {
-    // agent-3 API 데이터가 있는지 확인하고 파싱 시도
+    console.log('🔍 channelData 상세 분석:')
+    console.log('  - channelData 존재 여부:', !!props.channelData)
+    console.log('  - channelData 타입:', typeof props.channelData)
+    console.log('  - channelData 키들:', props.channelData ? Object.keys(props.channelData) : 'N/A')
+    console.log('  - output 존재 여부:', !!(props.channelData && props.channelData.output))
+    console.log('  - output 타입:', props.channelData?.output ? typeof props.channelData.output : 'N/A')
+    console.log('  - output 길이:', props.channelData?.output ? props.channelData.output.length : 'N/A')
+    
+    // API 응답에서 output 추출 (일관된 {output: "..."} 구조)
+    let outputString: string | null = null
+    
     if (props.channelData && props.channelData.output) {
+      outputString = props.channelData.output
       console.log('✅ agent-3 API 데이터 파싱 시작')
+      console.log('📄 Output 문자열 (처음 500자):', outputString ? outputString.substring(0, 500) : 'N/A')
+    }
+    
+    if (outputString) {
+      console.log('📄 Output 문자열에 ```json 포함 여부:', outputString.includes('```json'))
       
-      const outputString = props.channelData.output
-      console.log('📄 Output 문자열:', outputString.substring(0, 200) + '...')
-      
-      // ```json 코드 블록에서 JSON 추출 (개선된 로직)
+      // JSON 문자열 추출 로직 (마크다운 블록 및 순수 JSON 대응)
       let jsonString = ''
+      
       if (outputString.includes('```json')) {
-        // ```json\n으로 시작하는 부분 찾기
+        // ```json 마크다운 블록에서 추출
         let jsonStart = outputString.indexOf('```json\n')
         if (jsonStart === -1) {
           // 줄바꿈 없이 ```json으로 시작하는 경우
@@ -253,14 +267,23 @@ const initializeChannels = () => {
           throw new Error('```json 코드 블록을 올바르게 파싱할 수 없습니다.')
         }
       } else {
-        // 직접 JSON 배열 찾기 (fallback)
-        const jsonStart = outputString.indexOf('[')
-        const jsonEnd = outputString.lastIndexOf(']')
-        if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-          throw new Error('agent-3 API 응답에서 JSON 배열을 찾을 수 없습니다.')
+        // 순수 JSON 문자열 처리 (새로운 API 응답 형태)
+        const trimmedOutput = outputString.trim()
+        
+        // JSON 배열이나 객체로 시작하는지 확인
+        if (trimmedOutput.startsWith('[') || trimmedOutput.startsWith('{')) {
+          jsonString = trimmedOutput
+          console.log('🧹 순수 JSON 문자열 사용:', jsonString.substring(0, 200) + '...')
+        } else {
+          // 문자열에서 JSON 부분만 찾기 (fallback)
+          const jsonStart = outputString.indexOf('[')
+          const jsonEnd = outputString.lastIndexOf(']')
+          if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+            throw new Error('agent-3 API 응답에서 유효한 JSON을 찾을 수 없습니다.')
+          }
+          jsonString = outputString.substring(jsonStart, jsonEnd + 1).trim()
+          console.log('🧹 문자열에서 추출된 JSON:', jsonString.substring(0, 200) + '...')
         }
-        jsonString = outputString.substring(jsonStart, jsonEnd + 1).trim()
-        console.log('🧹 직접 추출된 JSON:', jsonString.substring(0, 200) + '...')
       }
       
       const apiChannels = JSON.parse(jsonString)
@@ -319,14 +342,19 @@ const initializeChannels = () => {
       console.log('🎉 agent-3 데이터로 channels 배열 생성 완료:', channels.value)
       isLoading.value = false
       
-    } else if (props.channelData === null || props.channelData === undefined) {
-      console.log('⚠️ channelData가 null/undefined입니다. agent-3 API 데이터 로딩 중...')
-      isLoading.value = true
-      channels.value = [] // 로딩 중에는 빈 배열
-      return
-      
     } else {
-      throw new Error('agent-3 API 데이터가 없거나 형식이 올바르지 않습니다.')
+      // outputString이 없는 경우
+      if (props.channelData === null || props.channelData === undefined) {
+        console.log('⚠️ channelData가 null/undefined입니다. agent-3 API 데이터 로딩 중...')
+        isLoading.value = true
+        channels.value = [] // 로딩 중에는 빈 배열
+        return
+      } else {
+        console.log('❌ channelData는 존재하지만 output을 찾을 수 없습니다:')
+        console.log('  - channelData 키들:', props.channelData ? Object.keys(props.channelData) : 'N/A')
+        console.log('  - output 값:', props.channelData?.output || 'N/A')
+        throw new Error('agent-3 API 데이터가 없거나 형식이 올바르지 않습니다.')
+      }
     }
     
   } catch (error) {

@@ -450,14 +450,32 @@ export const campaignApi = {
 
         const data = await response.json()
         console.log(`✅ Huntrix Channel API 응답 데이터 (시도 ${attempt}):`, data)
+        console.log(`🔍 응답 데이터 타입:`, typeof data)
+        console.log(`🔍 응답 데이터 배열 여부:`, Array.isArray(data))
+        
+        // 배열 형태 응답과 단일 객체 응답 모두 지원
+        let outputString: string | null = null
+        
+        if (Array.isArray(data) && data.length > 0 && data[0].output) {
+          // 배열 형태: [{"output": "..."}]
+          outputString = data[0].output
+          console.log(`📥 배열 형태 응답에서 output 추출됨 (길이: ${outputString ? outputString.length : 0})`)
+        } else if (data && typeof data === 'object' && data.output) {
+          // 단일 객체 형태: {"output": "..."}
+          outputString = data.output
+          console.log(`📥 객체 형태 응답에서 output 추출됨 (길이: ${outputString ? outputString.length : 0})`)
+        }
         
         // output 필드 유효성 검사
-        if (!data.output || typeof data.output !== 'string' || data.output.trim().length < 10) {
+        if (!outputString || typeof outputString !== 'string' || outputString.trim().length < 10) {
           console.warn(`⚠️ Channel API 응답에 유효한 output이 없음 (시도 ${attempt}):`, {
-            hasOutput: !!data.output,
-            outputType: typeof data.output,
-            outputLength: data.output?.length || 0,
-            fullResponse: data
+            isArray: Array.isArray(data),
+            arrayLength: Array.isArray(data) ? data.length : 'N/A',
+            firstElementOutput: Array.isArray(data) && data[0] ? !!data[0].output : 'N/A',
+            directOutput: !!data?.output,
+            outputString: outputString,
+            outputType: typeof outputString,
+            outputLength: outputString?.length || 0
           })
           
           lastError = new Error('Channel API가 유효한 데이터를 반환하지 않았습니다.')
@@ -466,16 +484,12 @@ export const campaignApi = {
           }
           console.log(`⚠️ 유효하지 않은 응답, ${attempt + 1}번째 시도를 진행합니다...`)
           continue // 다음 시도로
-          
-          console.log(`🔄 ${2}초 후 재시도합니다... (Channel output 검증 실패)`)
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          continue
         }
         
         // JSON 배열 파싱 및 채널 데이터 검증
         try {
           let parsedChannels: any[]
-          const outputString = data.output
+          // 이미 추출된 outputString 사용
           
           // JSON 배열 추출 (설명 텍스트와 함께 있을 수 있음)
           const jsonStart = outputString.indexOf('[')
@@ -497,7 +511,8 @@ export const campaignApi = {
           let validationPassed = true
           const validationResults: any = {}
           
-          for (const [index, channel] of parsedChannels.entries()) {
+          for (let index = 0; index < parsedChannels.length; index++) {
+            const channel = parsedChannels[index]
             const channelValidation: any = {}
             
             // name 필드 검증
@@ -563,14 +578,16 @@ export const campaignApi = {
 
           return {
             success: true,
-            data: parsedChannels,
+            data: {
+              output: outputString  // 항상 일관된 구조로 반환
+            },
             message: `채널 최적화 완료: ${parsedChannels.length}개 채널 분석`
           }
           
         } catch (parseError) {
           console.warn(`⚠️ Channel JSON 파싱 실패 (시도 ${attempt}):`, {
             error: parseError,
-            outputSample: data.output.substring(0, 500) + '...'
+            outputSample: outputString.substring(0, 500) + '...'
           })
           
           if (attempt === MAX_RETRIES) {
@@ -582,9 +599,12 @@ export const campaignApi = {
           continue
         }
         
+        // 일관된 응답 구조로 반환 (배열/객체 형태에 관계없이)
         return {
-          data,
           success: true,
+          data: {
+            output: outputString  // 추출된 output 문자열
+          },
           message: 'Huntrix 채널 최적화가 완료되었습니다.'
         }
       } catch (error) {
