@@ -45,7 +45,7 @@
               <component :is="Users" class="h-4 w-4 text-primary" />
               <span class="text-sm font-medium text-primary">Target Customers</span>
             </div>
-            <span class="text-base font-bold text-primary">{{ metric.targetAvg }}{{ metric.id === 'revisit_rate' ? ' times' : '' }}</span>
+            <span class="text-base font-bold text-primary">{{ metric.targetAvg }}{{ metric.id === 'revisit_rate' ? ' days' : '' }}</span>
           </div>
           
           <!-- 평균 고객 지표 -->
@@ -54,7 +54,7 @@
               <component :is="Globe" class="h-4 w-4 text-muted-foreground" />
               <span class="text-sm font-medium text-muted-foreground">Average Customers</span>
             </div>
-            <span class="text-base font-bold text-muted-foreground">{{ metric.allAvg }}{{ metric.id === 'revisit_rate' ? ' times' : '' }}</span>
+            <span class="text-base font-bold text-muted-foreground">{{ metric.allAvg }}{{ metric.id === 'revisit_rate' ? ' days' : '' }}</span>
           </div>
           
           <!-- 비율 표시 (conversion_rate, pred_revenue_rate 등) -->
@@ -198,41 +198,41 @@ const getAnalyticsMetrics = (): MetricData[] => {
         id: 'ltv_rate',
         title: 'LTV',
         value: ltvValue.toFixed(2),
-        unit: ' 배 예상 (평균 고객 대비)',
-        description: '타겟 고객 대비 전체 고객의 LTV 비율',
+        unit: 'x higher (vs. average customers)',
+        description: 'LTV ratio of total customers relative to target customers',
         icon: 'DollarSign',
         showRatio: true,
-        targetAvg: ltvRate.target.avg.toFixed(4),
-        allAvg: ltvRate.all.avg.toFixed(4)
+        targetAvg: ltvRate.target.avg.toFixed(1),
+        allAvg: ltvRate.all.avg.toFixed(1)
       },
       {
         id: 'ltv_latest_rate',
         title: 'LTV (최근 12주)',
-        value: (ltvLatestRate.target.avg / ltvLatestRate.all.avg).toFixed(2),
-        unit: ' 배 예상 (평균 고객 대비)',
-        description: '타겟 고객 대비 전체 고객의 LTV 비율 (최근 12주)',
+        value: (ltvLatestRate.target.avg / ltvLatestRate.all.avg).toFixed(1),
+        unit: 'x higher (vs. average customers)',
+        description: 'LTV ratio of total customers relative to target customers (last 12 weeks)',
         icon: 'DollarSign',
         showRatio: true,
-        targetAvg: ltvLatestRate.target.avg.toFixed(4),
-        allAvg: ltvLatestRate.all.avg.toFixed(4)
+        targetAvg: ltvLatestRate.target.avg.toFixed(1),
+        allAvg: ltvLatestRate.all.avg.toFixed(1)
       },
       {
       id: 'conversion_rate',
       title: 'Conversion Rate',
-      value: (conversionRate.target.avg / conversionRate.all.avg).toFixed(2),
+      value: (conversionRate.target.avg / conversionRate.all.avg).toFixed(1),
       unit: 'x higher (vs. average customers)',
       description: 'Conversion rate ratio of target vs. all customers',
       icon: 'Target',
         showRatio: true,
-        targetAvg: conversionRate.target.avg.toFixed(4),
-        allAvg: conversionRate.all.avg.toFixed(4)
+        targetAvg: conversionRate.target.avg.toFixed(1),
+        allAvg: conversionRate.all.avg.toFixed(1)
       },
       {
       id: 'revisit_rate', 
-      title: 'Revisit Prediction',
+      title: 'Re-order Prediction',
       value: revisitTargetValue.toFixed(1),
-      unit: ' days until expected revisit',
-      description: 'Average days until target customers revisit',
+      unit: ' days until expected re-order',
+      description: 'Average days until target customers re-order',
       icon: 'Users',
         showRatio: false,
         targetAvg: revisitTargetValue.toFixed(1),

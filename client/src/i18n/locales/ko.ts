@@ -157,7 +157,7 @@ export default {
 
   // AI Processing
   ai: {
-    analyzing: 'AI가 캠페인을 분석하고 있습니다... (최대 5분 소요)',
+    analyzing: 'AI가 캠페인을 분석하고 있습니다... (최대 2분 소요)',
     analyzing2: 'AI가 선택된 세그먼트의 성과를 분석하고 있습니다...',
     analyzing3: '채널 최적화를 위한 AI 분석이 진행 중입니다...',
     analysisCompleted: '분석 완료!',
@@ -170,7 +170,7 @@ export default {
   // App Header
   app: {
     title: 'SegMA',
-    subtitle: '세그멘텀 마케팅 에이전트'
+    subtitle: 'Segmentum Marketing Agent'
   },
 
   // Labels translation

@@ -49,7 +49,7 @@ export default {
   // Performance Metrics
   metrics: {
     title: 'Overall Expected Performance',
-    subtitle: 'Review the expected performance metrics for your selected customer segments. Predict campaign performance through key metrics such as CTR, conversion rate, and ROI.',
+    subtitle: 'Review the expected performance metrics for your selected customer segments. Predict campaign performance through key metrics such as LTV, conversion rate, etcs.',
     conversionRate: 'Conversion Rate',
     conversionDesc: 'Expected conversion rate for the target segment',
     targetRevisitRate: 'Target Revisit Rate',
@@ -157,7 +157,7 @@ export default {
 
   // AI Processing
   ai: {
-    analyzing: 'AI is analyzing the campaign... (up to 5 minutes)',
+    analyzing: 'AI is analyzing the campaign... (up to 2 minutes)',
     analyzing2: 'AI is analyzing performance of selected segments...',
     analyzing3: 'AI analysis for channel optimization in progress...',
     analysisCompleted: 'Analysis completed!',

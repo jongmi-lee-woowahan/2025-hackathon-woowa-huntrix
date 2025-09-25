@@ -222,7 +222,8 @@ export const campaignApi = {
       data: {
         expectedCTR: "3.4%",
         expectedConversion: "2.8%",
-        expectedROI: "340%"
+        expectedLTV: "340%",
+        expectedLTVLatest: "340%"
       },
       success: true,
       message: "성과 예측이 완료되었습니다."
@@ -252,13 +253,13 @@ export const campaignApi = {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         console.log(`🚀 Huntrix Analytics API 호출 시작 (${attempt}/${MAX_RETRIES}):`, conditions)
-        console.log('⏰ 최대 5분간 성과 분석이 진행됩니다...')
+        console.log('⏰ 최대 2분간 성과 분석이 진행됩니다...')
         
-        // 5분 타임아웃 설정
+        // 2분 타임아웃 설정
         const controller = new AbortController()
         const timeoutId = setTimeout(() => {
           controller.abort()
-        }, 5 * 60 * 1000) // 5분
+        }, 5 * 60 * 1000) // 2분
         
         const response = await fetch('https://buds-n8n.willing-snipe.dp.deliveryhero.io/webhook/huntrix-agent-2', {
           method: 'POST',
@@ -329,15 +330,20 @@ export const campaignApi = {
               continue
             }
             
-            const targetAvg = fieldData.target.avg
-            const allAvg = fieldData.all.avg
+            // 두 가지 구조를 모두 지원: 직접 avg 필드 또는 data.avg 필드
+            const targetData = fieldData.target.data || fieldData.target
+            const allData = fieldData.all.data || fieldData.all
+            
+            const targetAvg = targetData.avg
+            const allAvg = allData.avg
             
             if (typeof targetAvg !== 'number' || typeof allAvg !== 'number' || 
                 isNaN(targetAvg) || isNaN(allAvg) || targetAvg <= 0 || allAvg <= 0) {
               validationPassed = false
               validationResults[field] = {
                 targetAvg: { value: targetAvg, type: typeof targetAvg, valid: typeof targetAvg === 'number' && !isNaN(targetAvg) && targetAvg > 0 },
-                allAvg: { value: allAvg, type: typeof allAvg, valid: typeof allAvg === 'number' && !isNaN(allAvg) && allAvg > 0 }
+                allAvg: { value: allAvg, type: typeof allAvg, valid: typeof allAvg === 'number' && !isNaN(allAvg) && allAvg > 0 },
+                structure: { hasTargetData: !!fieldData.target.data, hasAllData: !!fieldData.all.data }
               }
             } else {
               validationResults[field] = 'Valid'
@@ -387,7 +393,7 @@ export const campaignApi = {
         console.error(`🚨 Huntrix Analytics API 요청 실패 (시도 ${attempt}/${MAX_RETRIES}):`, error)
         
         if (error instanceof Error && error.name === 'AbortError') {
-          throw new Error('성과 분석이 5분을 초과하여 중단되었습니다. 다시 시도해주세요.')
+          throw new Error('성과 분석이 2분을 초과하여 중단되었습니다. 다시 시도해주세요.')
         }
         
         if (attempt === MAX_RETRIES) {
@@ -408,7 +414,7 @@ export const campaignApi = {
     throw lastError || new Error('성과 분석 API 호출에 실패했습니다.')
   },
 
-  // Huntrix Agent-3 - 채널 배분 최적화 (3번 재시도, 최대 5분)
+  // Huntrix Agent-3 - 채널 배분 최적화 (3번 재시도, 최대 2분)
   async getHuntrixChannelOptimization(conditions: HuntrixCondition[]): Promise<ApiResponse<any>> {
     const MAX_RETRIES = 3
     let lastError: Error | null = null
@@ -416,13 +422,13 @@ export const campaignApi = {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         console.log(`🚀 Huntrix Channel API 호출 시작 (${attempt}/${MAX_RETRIES}):`, conditions)
-        console.log('⏰ 최대 5분간 채널 최적화 분석이 진행됩니다...')
+        console.log('⏰ 최대 2분간 채널 최적화 분석이 진행됩니다...')
         
-        // 5분 타임아웃 설정
+        // 2분 타임아웃 설정
         const controller = new AbortController()
         const timeoutId = setTimeout(() => {
           controller.abort()
-        }, 5 * 60 * 1000) // 5분
+        }, 5 * 60 * 1000) // 2분
         
         const response = await fetch('https://buds-n8n.willing-snipe.dp.deliveryhero.io/webhook/huntrix-agent-3', {
           method: 'POST',
@@ -614,7 +620,7 @@ export const campaignApi = {
         console.error(`🚨 Huntrix Channel API 요청 실패 (시도 ${attempt}/${MAX_RETRIES}):`, error)
         
         if (error instanceof Error && error.name === 'AbortError') {
-          throw new Error('채널 최적화가 5분을 초과하여 중단되었습니다. 다시 시도해주세요.')
+          throw new Error('채널 최적화가 2분을 초과하여 중단되었습니다. 다시 시도해주세요.')
         }
         
         if (attempt === MAX_RETRIES) {
@@ -643,13 +649,13 @@ export const campaignApi = {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         console.log(`🚀 Huntrix Agent-1 API 호출 시작 (${attempt}/${MAX_RETRIES}):`, { message })
-        console.log('⏰ 최대 5분간 AI 분석이 진행됩니다...')
+        console.log('⏰ 최대 2분간 AI 분석이 진행됩니다...')
         
-        // 5분 (300초) 타임아웃 설정
+        // 2분 (300초) 타임아웃 설정
         const controller = new AbortController()
         const timeoutId = setTimeout(() => {
           controller.abort()
-        }, 5 * 60 * 1000) // 5분
+        }, 5 * 60 * 1000) // 2분
         
         const response = await fetch('https://buds-n8n.willing-snipe.dp.deliveryhero.io/webhook/huntrix-agent-1', {
           method: 'POST',
@@ -716,9 +722,9 @@ export const campaignApi = {
         }
         
         // JSON 파싱
-        let rawParsedData: any[]
+        let parsedData: HuntrixCampaignRecommendation[]
         try {
-          rawParsedData = JSON.parse(jsonString) as any[]
+          parsedData = JSON.parse(jsonString) as HuntrixCampaignRecommendation[]
         } catch (parseError) {
           lastError = new Error(`JSON 파싱 실패: ${parseError instanceof Error ? parseError.message : '알 수 없는 오류'}`)
           if (attempt === MAX_RETRIES) {
@@ -727,15 +733,15 @@ export const campaignApi = {
           console.log(`⚠️ JSON 파싱 실패 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
           continue
         }
-        
-        console.log(`📊 파싱된 원시 데이터 (시도 ${attempt}):`, rawParsedData)
-        
-        if (!Array.isArray(rawParsedData) || rawParsedData.length === 0) {
-          lastError = new Error('파싱된 데이터가 빈 배열이거나 배열이 아닙니다.')
+
+        console.log(`📊 파싱된 데이터 (시도 ${attempt}):`, parsedData)
+
+        if (!Array.isArray(parsedData)) {
+          lastError = new Error('파싱된 데이터가 배열이 아닙니다.')
           if (attempt === MAX_RETRIES) {
             throw lastError
           }
-          console.log(`⚠️ 데이터 구조 오류 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
+          console.log(`⚠️ 데이터가 배열이 아님 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
           continue
         }
 
@@ -791,7 +797,7 @@ export const campaignApi = {
         
         // AbortController에 의한 타임아웃
         if (error instanceof Error && error.name === 'AbortError') {
-          throw new Error('AI 분석이 5분을 초과하여 중단되었습니다. 다시 시도해주세요.')
+          throw new Error('AI 분석이 2분을 초과하여 중단되었습니다. 다시 시도해주세요.')
         }
         
         // 네트워크 에러

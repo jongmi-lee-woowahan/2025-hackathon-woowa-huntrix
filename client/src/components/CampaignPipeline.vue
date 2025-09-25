@@ -576,7 +576,7 @@ const handleObjectiveSet = async (newObjective: string, retryCount = 0) => {
     isLoadingRecommendations.value = true
     aiStatus.value = 'processing'
     aiMessage.value = retryCount > 0 
-      ? `AI is re-analyzing the campaign... (Attempt ${retryCount + 1}, up to 5 minutes)`
+      ? `AI is re-analyzing the campaign... (Attempt ${retryCount + 1}, up to 2 minutes)`
       : t('ai.analyzing')
     
     const response = await api.getHuntrixRecommendations(newObjective)
