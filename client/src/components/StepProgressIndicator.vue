@@ -96,7 +96,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// 스텝 원형 스타일
+// Step circle styles
 const getStepClasses = (step: Step) => {
   if (step.status === 'completed') {
     return 'bg-primary border-primary text-primary-foreground border-3'
@@ -107,7 +107,7 @@ const getStepClasses = (step: Step) => {
   }
 }
 
-// 진행바 스타일
+// Progress bar styles
 const getProgressLineClass = (step: Step, index: number) => {
   if (step.status === 'completed') {
     return 'bg-primary w-full'
@@ -118,7 +118,7 @@ const getProgressLineClass = (step: Step, index: number) => {
   }
 }
 
-// 텍스트 스타일
+// Text styles
 const getTextClass = (step: Step) => {
   if (step.status === 'active') {
     return 'text-primary'
@@ -129,7 +129,7 @@ const getTextClass = (step: Step) => {
   }
 }
 
-// 설명 텍스트 스타일
+// Description text styles
 const getDescriptionClass = (step: Step) => {
   if (step.status === 'active') {
     return 'text-primary/80'

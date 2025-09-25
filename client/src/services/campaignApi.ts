@@ -42,7 +42,7 @@ export interface HuntrixCampaignRecommendation {
   name: string
   description: string
   customer_cnt: number
-  lables: string[] // API에서 'lables' 사용 (오타)
+  labels: string[] // API에서 'labels' 사용 (올바른 철자)
   conditions: HuntrixCondition[] // API 서버 전달용 조건
 }
 
@@ -716,9 +716,9 @@ export const campaignApi = {
         }
         
         // JSON 파싱
-        let parsedData: HuntrixCampaignRecommendation[]
+        let rawParsedData: any[]
         try {
-          parsedData = JSON.parse(jsonString) as HuntrixCampaignRecommendation[]
+          rawParsedData = JSON.parse(jsonString) as any[]
         } catch (parseError) {
           lastError = new Error(`JSON 파싱 실패: ${parseError instanceof Error ? parseError.message : '알 수 없는 오류'}`)
           if (attempt === MAX_RETRIES) {
@@ -728,14 +728,14 @@ export const campaignApi = {
           continue
         }
         
-        console.log(`📊 파싱된 데이터 (시도 ${attempt}):`, parsedData)
+        console.log(`📊 파싱된 원시 데이터 (시도 ${attempt}):`, rawParsedData)
         
-        if (!Array.isArray(parsedData)) {
-          lastError = new Error('파싱된 데이터가 배열이 아닙니다.')
+        if (!Array.isArray(rawParsedData) || rawParsedData.length === 0) {
+          lastError = new Error('파싱된 데이터가 빈 배열이거나 배열이 아닙니다.')
           if (attempt === MAX_RETRIES) {
             throw lastError
           }
-          console.log(`⚠️ 데이터가 배열이 아님 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
+          console.log(`⚠️ 데이터 구조 오류 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
           continue
         }
 
@@ -778,13 +778,13 @@ export const campaignApi = {
           continue
         }
 
-        console.log(`📈 유효한 캠페인 개수 (시도 ${attempt}):`, parsedData.length)
+        console.log(`📈 유효한 세그먼트 개수 (시도 ${attempt}):`, parsedData.length)
         console.log(`✅ 모든 세그먼트에 name, description 포함 확인`)
 
         return {
           data: parsedData,
           success: true,
-          message: `AI가 ${parsedData.length}개의 캠페인을 추천했습니다.`
+          message: `AI가 ${parsedData.length}개의 세그먼트를 추천했습니다.`
         }
       } catch (error) {
         console.error('🚨 Huntrix API request failed:', error)

@@ -3,19 +3,19 @@
     <div class="border-0 bg-card/50 backdrop-blur-sm p-6 rounded-lg">
       <h2 class="flex items-center space-x-2 text-xl pb-2">
         <Share2 class="h-5 w-5 text-primary" />
-        <span>마케팅 채널 배분</span>
+        <span>{{ $t('channels.title') }}</span>
       </h2>
       <p class="text-muted-foreground">
-        고객 예상 선호도를 기반으로 마케팅 예산을 채널별로 배분해보세요.
+        {{ $t('channels.subtitle') }}
       </p>
     </div>
-    
+
     <!-- agent-3 데이터 오류 상태 -->
     <div v-if="channelDataError" class="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
-      <h3 class="font-semibold text-destructive mb-2">채널 데이터 오류</h3>
+      <h3 class="font-semibold text-destructive mb-2">{{ $t('channels.channelDataError') }}</h3>
       <p class="text-sm text-muted-foreground mb-2">{{ channelDataError }}</p>
       <details class="text-xs">
-        <summary class="cursor-pointer text-muted-foreground hover:text-foreground">원본 응답 데이터 보기</summary>
+        <summary class="cursor-pointer text-muted-foreground hover:text-foreground">{{ $t('channels.viewOriginalResponse') }}</summary>
         <pre class="mt-2 p-2 bg-muted rounded text-xs overflow-auto">{{ JSON.stringify(rawChannelData, null, 2) }}</pre>
       </details>
     </div>
@@ -24,7 +24,7 @@
     <div v-if="isLoading" class="flex items-center justify-center p-12">
       <div class="flex flex-col items-center space-y-4">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p class="text-sm text-muted-foreground">AI가 최적화한 채널 배분을 분석 중입니다...</p>
+        <p class="text-sm text-muted-foreground">{{ $t('channels.aiAnalyzing') }}</p>
       </div>
     </div>
 
@@ -52,7 +52,7 @@
                     <span>{{ label }}</span>
                   </span>
                   <span v-if="channel.labels.length > 3" class="text-xs text-muted-foreground px-2 py-1">
-                    +{{ channel.labels.length - 3 }}개 더
+                    +{{ channel.labels.length - 3 }} more
                   </span>
                 </div>
               </div>
@@ -62,14 +62,14 @@
                 {{ channel.cost }}
               </span>
               <span class="px-2 py-1 bg-muted text-muted-foreground text-xs rounded">
-                도달: {{ channel.customerCount }}명
+                {{ $t('channels.reach') }}: {{ channel.customerCount }} {{ $t('segmentation.people') }}
               </span>
             </div>
           </div>
           
           <div class="space-y-2">
             <div class="flex items-center justify-between text-sm">
-              <span class="text-muted-foreground">마케팅 채널 비율</span>
+              <span class="text-muted-foreground">{{ $t('channels.marketingChannelRatio') }}</span>
               <span class="font-medium text-foreground">{{ channel.allocation }}%</span>
             </div>
             <div class="relative">
@@ -81,10 +81,10 @@
                 max="100"
                 step="1"
                 class="w-full opacity-60 cursor-not-allowed channel-slider"
-                :data-testid="`slider-${channel.id}`"
+              :data-testid="`slider-${channel.id}`"
                 :style="{ '--value': `${channel.allocation}%` }"
                 disabled
-              />
+            />
             </div>
           </div>
         </div>
@@ -95,18 +95,18 @@
       <div class="flex items-center justify-between">
         <div class="space-y-2">
           <h4 class="text-lg font-semibold text-foreground">
-            채널별 예산 배분 완료
+            {{ $t('channels.channelBudgetComplete') }}
           </h4>
           <p class="text-sm text-muted-foreground">
-            총 예상 비용: ₩{{ totalBudget.toLocaleString() }}
+            {{ $t('channels.totalExpectedCost') }}: ₩{{ totalBudget.toLocaleString() }}
           </p>
         </div>
         <div class="text-right space-y-1">
           <div class="text-2xl font-bold text-green-500">
-            {{ channels.length }}개 채널
+            {{ channels.length }} {{ $t('channels.channels') }}
           </div>
           <div class="text-sm text-muted-foreground">
-            총 {{ totalCustomers.toLocaleString() }}명 도달
+            {{ $t('channels.totalPeopleReached', { count: totalCustomers.toLocaleString() }) }}
           </div>
         </div>
       </div>
@@ -118,7 +118,7 @@
           data-testid="button-finalize-campaign"
         >
           <Rocket class="h-4 w-4 mr-2" />
-          캠페인 최종 확인
+          {{ $t('channels.finalCampaignReview') }}
         </button>
       </div>
     </div>
@@ -127,6 +127,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Share2, Smartphone, Mail, Search, MessageCircle, Rocket, Target, Tag } from 'lucide-vue-next'
 
 interface Channel {
@@ -156,9 +157,45 @@ const emit = defineEmits<{
   'channels-configured': [channels: Channel[]]
 }>()
 
+// I18n setup
+const { t, te } = useI18n()
+
+// Labels 번역 함수 (agent API 응답 처리용)
+const translateLabel = (label: string): string => {
+  if (!label) return ''
+  
+  try {
+    const translationKey = `labels.${label}`
+    // 번역 키가 존재하는지 먼저 확인
+    if (te(translationKey)) {
+      return t(translationKey)
+    }
+    // 번역이 없으면 console에 로그 출력하고 원본 반환
+    console.warn(`🌐 Missing translation for channel label: "${label}"`)
+    return label
+  } catch (error) {
+    console.error('Label translation error:', error, 'for label:', label)
+    return label
+  }
+}
+
 // 기본 채널 아이콘 맵핑
 const getChannelIcon = (name: string) => {
   const iconMap: { [key: string]: any } = {
+    // English channel names
+    'Social Media': Share2,
+    'Mobile': Smartphone,
+    'Mobile Ads': Smartphone,
+    'Email': Mail,
+    'Email Marketing': Mail,
+    'Search': Search,
+    'Search Ads': Search,
+    'Messenger': MessageCircle,
+    'Push Notifications': Smartphone,
+    'In-App Messages': Smartphone,
+    'SMS': MessageCircle,
+    'Text Message': MessageCircle,
+    // Korean channel names (backward compatibility)
     '소셜미디어': Share2,
     '모바일': Smartphone,
     '모바일 광고': Smartphone,
@@ -171,7 +208,7 @@ const getChannelIcon = (name: string) => {
     '인앱 메시지': Smartphone,
     '카카오톡': MessageCircle,
     '문자 (SMS)': MessageCircle,
-    '문자': MessageCircle  // 새로운 형식 추가
+    '문자': MessageCircle
   }
   return iconMap[name] || Target
 }
@@ -179,14 +216,88 @@ const getChannelIcon = (name: string) => {
 // 채널별 예산 가격 (1인당 비용)
 const getChannelPrice = (name: string): number => {
   const priceMap: { [key: string]: number } = {
-    '푸시 알림': 1000,      // 1k
-    '인앱 메시지': 2000,     // 2k
-    '카카오톡': 3000,       // 3k
-    '이메일': 4000,         // 4k
-    '문자 (SMS)': 5000,     // 5k
-    '문자': 5000           // 5k (새로운 형식)
+    // English channel names
+    'Push Notifications': 1000,    // 1k
+    'In-App Messages': 2000,       // 2k
+    'Messenger': 3000,             // 3k
+    'Email': 4000,                 // 4k
+    'Email Marketing': 4000,       // 4k
+    'SMS': 5000,                   // 5k
+    'Text Message': 5000,          // 5k
+    'Social Media': 3000,          // 3k
+    'Mobile': 2000,                // 2k
+    'Mobile Ads': 2000,            // 2k
+    'Search': 3500,                // 3.5k
+    'Search Ads': 3500,            // 3.5k
+    // Korean channel names (backward compatibility)
+    '푸시 알림': 1000,              // 1k
+    '인앱 메시지': 2000,             // 2k
+    '카카오톡': 3000,               // 3k
+    '이메일': 4000,                 // 4k
+    '문자 (SMS)': 5000,            // 5k
+    '문자': 5000                   // 5k
   }
   return priceMap[name] || 1000 // 기본값 1k
+}
+
+// 한글 채널명을 영어로 변환하는 함수
+const translateChannelName = (koreanName: string): string => {
+  const translationMap: { [key: string]: string } = {
+    '푸시 알림': 'Push Notifications',
+    '인앱 메시지': 'In-App Messages',
+    '카카오톡': 'Messenger',
+    '문자 (SMS)': 'SMS',
+    '문자': 'SMS',
+    '이메일': 'Email',
+    '이메일 마케팅': 'Email Marketing',
+    '소셜미디어': 'Social Media',
+    '모바일': 'Mobile',
+    '모바일 광고': 'Mobile Ads',
+    '검색': 'Search',
+    '검색 광고': 'Search Ads',
+    '메신저': 'Messenger'
+  }
+  return translationMap[koreanName] || koreanName // 매핑되지 않으면 원래 이름 사용
+}
+
+// 채널명을 i18n 키로 매핑하는 함수
+const getChannelDescriptionKey = (channelName: string): string => {
+  const keyMap: { [key: string]: string } = {
+    'Push Notifications': 'pushNotifications',
+    'In-App Messages': 'inAppMessages',
+    'Messenger': 'messenger',
+    'SMS': 'sms',
+    'Text Message': 'textMessage',
+    'Email': 'email',
+    'Email Marketing': 'emailMarketing',
+    'Social Media': 'socialMedia',
+    'Mobile': 'mobile',
+    'Mobile Ads': 'mobileAds',
+    'Search': 'search',
+    'Search Ads': 'searchAds',
+    'Messaging': 'messenger', // Messaging을 messenger로 매핑
+    // 한글 채널명도 직접 지원
+    '푸시 알림': 'pushNotifications',
+    '인앱 메시지': 'inAppMessages',
+    '카카오톡': 'messenger',
+    '문자': 'sms',
+    '문자 (SMS)': 'sms',
+    '이메일': 'email',
+    '이메일 마케팅': 'emailMarketing',
+    '소셜미디어': 'socialMedia',
+    '모바일': 'mobile',
+    '모바일 광고': 'mobileAds',
+    '검색': 'search',
+    '검색 광고': 'searchAds',
+    '메신저': 'messenger'
+  }
+  return keyMap[channelName] || 'default'
+}
+
+// 번역된 채널 설명을 가져오는 함수
+const getTranslatedDescription = (channelName: string): string => {
+  const descriptionKey = getChannelDescriptionKey(channelName)
+  return t(`channels.descriptions.${descriptionKey}`)
 }
 
 // 기본 채널 색상 맵핑
@@ -209,162 +320,86 @@ const isLoading = ref(true)
 const channelDataError = ref<string>('')
 const rawChannelData = ref<any>(null)
 
-// agent-3 channelData를 사용하여 채널 초기화 (오류 처리 포함)
+// agent-3 channelData를 사용하여 채널 초기화
 const initializeChannels = () => {
   console.log('🎯 agent-3 Channel data 초기화:', props.channelData)
-  console.log('🔍 channelData 타입:', typeof props.channelData)
-  console.log('🔍 channelData 배열 여부:', Array.isArray(props.channelData))
-  console.log('🔍 channelData 길이:', props.channelData?.length)
-  console.log('🔍 channelData null 체크:', props.channelData === null)
-  console.log('🔍 channelData undefined 체크:', props.channelData === undefined)
   
   // 오류 상태 초기화
   channelDataError.value = ''
   rawChannelData.value = null
   
   try {
-    console.log('🔍 channelData 상세 분석:')
-    console.log('  - channelData 존재 여부:', !!props.channelData)
-    console.log('  - channelData 타입:', typeof props.channelData)
-    console.log('  - channelData 키들:', props.channelData ? Object.keys(props.channelData) : 'N/A')
-    console.log('  - output 존재 여부:', !!(props.channelData && props.channelData.output))
-    console.log('  - output 타입:', props.channelData?.output ? typeof props.channelData.output : 'N/A')
-    console.log('  - output 길이:', props.channelData?.output ? props.channelData.output.length : 'N/A')
-    
-    // API 응답에서 output 추출 (일관된 {output: "..."} 구조)
-    let outputString: string | null = null
-    
-    if (props.channelData && props.channelData.output) {
-      outputString = props.channelData.output
-      console.log('✅ agent-3 API 데이터 파싱 시작')
-      console.log('📄 Output 문자열 (처음 500자):', outputString ? outputString.substring(0, 500) : 'N/A')
+    if (!props.channelData || !props.channelData.output) {
+      console.log('⚠️ channelData not available. Using default data')
+      initializeDefaultChannels()
+      return
     }
     
-    if (outputString) {
-      console.log('📄 Output 문자열에 ```json 포함 여부:', outputString.includes('```json'))
-      
-      // JSON 문자열 추출 로직 (마크다운 블록 및 순수 JSON 대응)
-      let jsonString = ''
-      
-      if (outputString.includes('```json')) {
-        // ```json 마크다운 블록에서 추출
-        let jsonStart = outputString.indexOf('```json\n')
-        if (jsonStart === -1) {
-          // 줄바꿈 없이 ```json으로 시작하는 경우
-          jsonStart = outputString.indexOf('```json')
-          if (jsonStart !== -1) {
-            jsonStart += 7 // '```json'.length
-          }
-        } else {
-          jsonStart += 8 // '```json\n'.length
-        }
-        
-        const jsonEnd = outputString.indexOf('\n```', jsonStart)
-        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-          jsonString = outputString.substring(jsonStart, jsonEnd).trim()
-          console.log('🧹 ```json 블록에서 추출된 JSON:', jsonString.substring(0, 200) + '...')
-        } else {
-          throw new Error('```json 코드 블록을 올바르게 파싱할 수 없습니다.')
-        }
-      } else {
-        // 순수 JSON 문자열 처리 (새로운 API 응답 형태)
-        const trimmedOutput = outputString.trim()
-        
-        // JSON 배열이나 객체로 시작하는지 확인
-        if (trimmedOutput.startsWith('[') || trimmedOutput.startsWith('{')) {
-          jsonString = trimmedOutput
-          console.log('🧹 순수 JSON 문자열 사용:', jsonString.substring(0, 200) + '...')
-        } else {
-          // 문자열에서 JSON 부분만 찾기 (fallback)
-          const jsonStart = outputString.indexOf('[')
-          const jsonEnd = outputString.lastIndexOf(']')
-          if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-            throw new Error('agent-3 API 응답에서 유효한 JSON을 찾을 수 없습니다.')
-          }
-          jsonString = outputString.substring(jsonStart, jsonEnd + 1).trim()
-          console.log('🧹 문자열에서 추출된 JSON:', jsonString.substring(0, 200) + '...')
-        }
-      }
-      
-      const apiChannels = JSON.parse(jsonString)
-      
-      if (!Array.isArray(apiChannels) || apiChannels.length === 0) {
-        throw new Error('agent-3 API에서 반환된 채널 데이터가 유효하지 않습니다.')
-      }
-      
-      console.log('✅ agent-3 API 데이터 사용 - 채널 개수:', apiChannels.length)
-      
-      // agent-3 API 데이터 사용 - 각 채널을 매핑
-      channels.value = apiChannels.map((apiChannel: any, index: number) => {
-        console.log(`📊 처리 중인 채널 ${index}:`, apiChannel)
-        console.log(`  - name: ${apiChannel.name}`)
-        console.log(`  - description: ${apiChannel.description}`)
-        console.log(`  - customer_ratio: ${apiChannel.customer_ratio}`)
-        console.log(`  - customer_cnt: ${apiChannel.customer_cnt}`)
-        console.log(`  - lables:`, apiChannel.lables)
-        
-        // 필수 필드 검증
-        const channelName = apiChannel.name || `채널 ${index + 1}`
-        const customerCount = Math.max(apiChannel.customer_cnt || 1000, 1) // 최소 1명
-        const customerRatio = Math.max(apiChannel.customer_ratio || 0.01, 0) // 최소 0%
-        const pricePerCustomer = getChannelPrice(channelName)
-        const totalCost = customerCount * pricePerCustomer
-        
-        // Labels 처리 - 배열인지 확인하고 안전하게 처리
-        let processedLabels: string[] = []
-        if (apiChannel.lables && Array.isArray(apiChannel.lables)) {
-          processedLabels = apiChannel.lables
-            .filter((label: any) => typeof label === 'string' && label.trim().length > 0)
-            .map((label: string) => label.trim())
-          console.log(`  - 처리된 labels: ${processedLabels.join(', ')}`)
-        }
-        
-        const mappedChannel = {
-          id: `channel_${index}`,
-          name: channelName,
-          icon: getChannelIcon(channelName),
-          allocation: Math.round(customerRatio * 100), // customer_ratio를 백분율로 변환
-          cost: `₩${Math.round(totalCost / 1000)}K`, // 천원 단위로 표시
-          customerCount: customerCount,
-          color: getChannelColor(index),
-          labels: processedLabels, // 처리된 labels 배열 사용
-          description: (apiChannel.description && apiChannel.description.trim()) ? 
-                      apiChannel.description.trim() : undefined
-        }
-        
-        console.log(`✨ 매핑된 채널 ${index}:`, {
-          ...mappedChannel,
-          description: mappedChannel.description ? `${mappedChannel.description.substring(0, 100)}...` : undefined
-        })
-        return mappedChannel
-      })
-      
-      console.log('🎉 agent-3 데이터로 channels 배열 생성 완료:', channels.value)
-      isLoading.value = false
-      
-    } else {
-      // outputString이 없는 경우
-      if (props.channelData === null || props.channelData === undefined) {
-        console.log('⚠️ channelData가 null/undefined입니다. agent-3 API 데이터 로딩 중...')
-        isLoading.value = true
-        channels.value = [] // 로딩 중에는 빈 배열
-        return
-      } else {
-        console.log('❌ channelData는 존재하지만 output을 찾을 수 없습니다:')
-        console.log('  - channelData 키들:', props.channelData ? Object.keys(props.channelData) : 'N/A')
-        console.log('  - output 값:', props.channelData?.output || 'N/A')
-        throw new Error('agent-3 API 데이터가 없거나 형식이 올바르지 않습니다.')
-      }
+    const outputString = props.channelData.output
+    console.log('📄 Output 문자엱 처리 시작')
+    
+    // JSON 배열 추출
+    const jsonStart = outputString.indexOf('[')
+    const jsonEnd = outputString.lastIndexOf(']')
+    
+    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+      throw new Error('Could not find JSON array.')
     }
+    
+    const jsonString = outputString.substring(jsonStart, jsonEnd + 1)
+    const apiChannels = JSON.parse(jsonString)
+    
+    if (!Array.isArray(apiChannels) || apiChannels.length === 0) {
+      throw new Error('No valid channel array found.')
+    }
+    
+    console.log('✅ agent-3 API 데이터 사용 - 채널 개수:', apiChannels.length)
+    
+    // agent-3 API 데이터 사용 - 각 채널을 매핑
+    channels.value = apiChannels.map((apiChannel: any, index: number) => {
+      const originalChannelName = apiChannel.name || `Channel ${index + 1}`
+      const englishChannelName = translateChannelName(originalChannelName) // 한글을 영어로 변환
+      const customerCount = Math.max(apiChannel.customer_cnt || 1000, 1)
+      const customerRatio = Math.max(apiChannel.customer_ratio || 0.01, 0)
+      const pricePerCustomer = getChannelPrice(originalChannelName) // 가격 계산은 원래 이름으로
+      const totalCost = customerCount * pricePerCustomer
+      
+      // Labels 처리 및 번역
+      let processedLabels: string[] = []
+      if (apiChannel.labels && Array.isArray(apiChannel.labels)) {
+        processedLabels = apiChannel.labels
+          .filter((label: any) => typeof label === 'string' && label.trim().length > 0)
+          .map((label: string) => {
+            const trimmedLabel = label.trim()
+            // 실시간으로 label을 번역하여 반환
+            return translateLabel(trimmedLabel)
+          })
+      }
+      
+      return {
+        id: `channel_${index}`,
+        name: englishChannelName, // UI에는 영어 이름 표시
+        icon: getChannelIcon(originalChannelName), // 아이콘 매핑은 원래 이름으로
+        allocation: Math.round(customerRatio * 100),
+        cost: `₩${Math.round(totalCost / 1000)}K`,
+        customerCount: customerCount,
+        color: getChannelColor(index),
+        labels: processedLabels,
+        description: getTranslatedDescription(englishChannelName)
+      }
+    })
+    
+    console.log('🎉 channels 배열 생성 완료:', channels.value)
+    isLoading.value = false
     
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
-    channelDataError.value = `agent-3 채널 데이터 처리 실패: ${errorMsg}`
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+    channelDataError.value = `Failed to process agent-3 channel data: ${errorMsg}`
     rawChannelData.value = props.channelData
-    console.error('❌ agent-3 ChannelDistribution 초기화 실패:', error)
+    console.error('❌ ChannelDistribution 초기화 실패:', error)
     
     // 오류 시 기본 데이터 사용
-    console.log('⚠️ 오류로 인해 기본 데이터 사용')
+    console.log('⚠️ Using default data due to error')
     initializeDefaultChannels()
   }
 }
@@ -372,73 +407,68 @@ const initializeChannels = () => {
 // 기본 채널 데이터로 초기화
 const initializeDefaultChannels = () => {
   channels.value = [
-    {
-      id: 'social',
-      name: '소셜미디어',
-      icon: Share2,
-      allocation: 35,
-      cost: '₩350K',
+  {
+    id: 'social',
+      name: 'Social Media',
+    icon: Share2,
+    allocation: 35,
+    cost: '₩350K',
       customerCount: 45200,
       color: 'text-blue-500',
       labels: [],
-      description: undefined
-    },
-    {
-      id: 'mobile',
-      name: '모바일 광고',
-      icon: Smartphone,
-      allocation: 25,
-      cost: '₩250K',
+      description: getTranslatedDescription('Social Media')
+  },
+  {
+    id: 'mobile',
+      name: 'Mobile Ads',
+    icon: Smartphone,
+    allocation: 25,
+    cost: '₩250K',
       customerCount: 38800,
       color: 'text-green-500',
       labels: [],
-      description: undefined
-    },
-    {
-      id: 'email',
-      name: '이메일 마케팅',
-      icon: Mail,
-      allocation: 15,
-      cost: '₩150K',
+      description: getTranslatedDescription('Mobile Ads')
+  },
+  {
+    id: 'email',
+      name: 'Email Marketing',
+    icon: Mail,
+    allocation: 15,
+    cost: '₩150K',
       customerCount: 25500,
       color: 'text-purple-500',
       labels: [],
-      description: undefined
-    },
-    {
-      id: 'search',
-      name: '검색 광고',
-      icon: Search,
-      allocation: 20,
-      cost: '₩200K',
+      description: getTranslatedDescription('Email Marketing')
+  },
+  {
+    id: 'search',
+      name: 'Search Ads',
+    icon: Search,
+    allocation: 20,
+    cost: '₩200K',
       customerCount: 42100,
       color: 'text-orange-500',
       labels: [],
-      description: undefined
-    },
-    {
-      id: 'messaging',
-      name: '메신저',
-      icon: MessageCircle,
-      allocation: 5,
-      cost: '₩50K',
+      description: getTranslatedDescription('Search Ads')
+  },
+  {
+    id: 'messaging',
+      name: 'Messaging',
+    icon: MessageCircle,
+    allocation: 5,
+    cost: '₩50K',
       customerCount: 15200,
       color: 'text-pink-500',
       labels: [],
-      description: undefined
+      description: getTranslatedDescription('Messaging')
     }
   ]
   isLoading.value = false
 }
 
-// props.channelData 변경 감지 (더 상세한 디버깅)
-watch(() => props.channelData, (newValue, oldValue) => {
-  console.log('📡 channelData props 변경 감지:')
-  console.log('  - 이전값:', oldValue)
-  console.log('  - 새값:', newValue)
-  console.log('  - 새값 타입:', typeof newValue)
-  console.log('  - 새값 배열 여부:', Array.isArray(newValue))
-  console.log('  - 새값 길이:', newValue?.length)
+// props.channelData 변경 감지
+watch(() => props.channelData, (newValue) => {
+  console.log('📡 channelData props 변경 감지:', newValue)
   initializeChannels()
 }, { deep: true, immediate: true })
 
@@ -457,7 +487,7 @@ const totalCustomers = computed(() => {
 
 const updateAllocation = (channelId: string, newAllocation: number) => {
   // 예산 배분 UI가 비활성화되어 있으므로 업데이트하지 않음
-  console.log('⚠️ 예산 배분은 AI가 최적화한 결과입니다. 수정할 수 없습니다.')
+  console.log('⚠️ Budget allocation is AI-optimized results. Cannot be modified.')
   return
 }
 

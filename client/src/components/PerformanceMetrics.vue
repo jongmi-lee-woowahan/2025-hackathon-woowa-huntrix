@@ -1,19 +1,19 @@
 <template>
   <div class="space-y-6">
-    <h2 class="text-2xl font-bold mb-4">전체 예상 성과</h2>
+    <h2 class="text-2xl font-bold mb-4">Overall Expected Performance</h2>
     
     <!-- 로딩 상태 -->
     <div v-if="isLoading" class="flex items-center justify-center p-8">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      <span class="ml-2 text-muted-foreground">성과 데이터를 분석 중...</span>
+      <span class="ml-2 text-muted-foreground">Analyzing performance data...</span>
     </div>
     
     <!-- 에러 상태 -->
     <div v-else-if="errorMessage" class="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
-      <h3 class="font-semibold text-destructive mb-2">데이터 처리 오류</h3>
+      <h3 class="font-semibold text-destructive mb-2">Data Processing Error</h3>
       <p class="text-sm text-muted-foreground mb-2">{{ errorMessage }}</p>
       <details class="text-xs">
-        <summary class="cursor-pointer text-muted-foreground hover:text-foreground">원본 응답 데이터 보기</summary>
+        <summary class="cursor-pointer text-muted-foreground hover:text-foreground">View Original Response Data</summary>
         <pre class="mt-2 p-2 bg-muted rounded text-xs overflow-auto">{{ JSON.stringify(rawApiData, null, 2) }}</pre>
       </details>
     </div>
@@ -43,24 +43,24 @@
           <div v-if="metric.targetAvg" class="flex items-center justify-between bg-primary/5 rounded-md">
             <div class="flex items-center space-x-2">
               <component :is="Users" class="h-4 w-4 text-primary" />
-              <span class="text-sm font-medium text-primary">타겟 고객</span>
+              <span class="text-sm font-medium text-primary">Target Customers</span>
             </div>
-            <span class="text-base font-bold text-primary">{{ metric.targetAvg }}{{ metric.id === 'revisit_rate' ? '회' : '' }}</span>
+            <span class="text-base font-bold text-primary">{{ metric.targetAvg }}{{ metric.id === 'revisit_rate' ? ' times' : '' }}</span>
           </div>
           
           <!-- 평균 고객 지표 -->
           <div v-if="metric.allAvg" class="flex items-center justify-between bg-muted/30 rounded-md">
             <div class="flex items-center space-x-2">
               <component :is="Globe" class="h-4 w-4 text-muted-foreground" />
-              <span class="text-sm font-medium text-muted-foreground">평균 고객</span>
+              <span class="text-sm font-medium text-muted-foreground">Average Customers</span>
             </div>
-            <span class="text-base font-bold text-muted-foreground">{{ metric.allAvg }}{{ metric.id === 'revisit_rate' ? '회' : '' }}</span>
+            <span class="text-base font-bold text-muted-foreground">{{ metric.allAvg }}{{ metric.id === 'revisit_rate' ? ' times' : '' }}</span>
           </div>
           
           <!-- 비율 표시 (conversion_rate, pred_revenue_rate 등) -->
           <div v-if="metric.showRatio" class="flex items-center justify-center text-sm">
             <component :is="TrendingUp" class="h-4 w-4 text-green-500 mr-1" />
-            <span class="text-green-600 font-medium ml-1"> {{ metric.value }} 배 높음</span>
+            <span class="text-green-600 font-medium ml-1"> {{ metric.value }}x higher</span>
           </div>
         </div>
       </div>
@@ -73,9 +73,9 @@
           <component :is="Target" class="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-foreground mb-1">선택된 타겟 세그먼트</h3>
+          <h3 class="text-lg font-semibold text-foreground mb-1">Selected Target Segment</h3>
           <p class="text-base font-medium text-primary leading-relaxed">{{ segmentName }}</p>
-          <p class="text-sm text-muted-foreground mt-2">위 성과 지표는 선택된 세그먼트를 기준으로 분석된 결과입니다.</p>
+          <p class="text-sm text-muted-foreground mt-2">The above performance metrics are based on analysis of the selected segment.</p>
         </div>
       </div>
     </div>
@@ -89,7 +89,6 @@ import { TrendingUp, Target, Users, DollarSign, Globe } from 'lucide-vue-next'
 interface Props {
   segmentName?: string
   analyticsData?: any // API에서 받은 analytics 데이터
-  channelData?: any // API에서 받은 channel 데이터
 }
 
 interface MetricData {
@@ -106,8 +105,7 @@ interface MetricData {
 
 const props = withDefaults(defineProps<Props>(), {
   segmentName: '',
-  analyticsData: null,
-  channelData: null
+  analyticsData: null
 })
 
 const isLoading = ref(false)
@@ -123,7 +121,7 @@ const getIcon = (iconName: string) => {
   return iconMap[iconName] || Target
 }
 
-// API 데이터를 파싱하여 metrics로 변환 (agent-2와 agent-3 데이터 구분)
+// API 데이터를 파싱하여 metrics로 변환 (agent-2 데이터만)
 const metrics = computed<MetricData[]>(() => {
   return getAnalyticsMetrics() // agent-2: 전환율, 타겟 재방문수, 수익성 등
 })
@@ -131,8 +129,8 @@ const metrics = computed<MetricData[]>(() => {
 // Analytics 데이터에서 메트릭 생성
 const getAnalyticsMetrics = (): MetricData[] => {
   if (!props.analyticsData) {
-    console.log('⚠️ Analytics 데이터가 없음. 빈 배열 반환')
-    return []
+    console.log('⚠️ Analytics data not available. Using default data')
+    return getDefaultAnalyticsMetrics()
   }
 
   try {
@@ -219,23 +217,23 @@ const getAnalyticsMetrics = (): MetricData[] => {
         allAvg: ltvLatestRate.all.avg.toFixed(4)
       },
       {
-        id: 'conversion_rate',
-        title: '전환율',
-        value: (conversionRate.target.avg / conversionRate.all.avg).toFixed(2),
-        unit: ' 배 예상 (평균 고객 대비)',
-        description: '타겟 고객 대비 전체 고객의 전환율 비율',
-        icon: 'Target',
+      id: 'conversion_rate',
+      title: 'Conversion Rate',
+      value: (conversionRate.target.avg / conversionRate.all.avg).toFixed(2),
+      unit: 'x higher (vs. average customers)',
+      description: 'Conversion rate ratio of target vs. all customers',
+      icon: 'Target',
         showRatio: true,
         targetAvg: conversionRate.target.avg.toFixed(4),
         allAvg: conversionRate.all.avg.toFixed(4)
       },
       {
-        id: 'revisit_rate', 
-        title: '재방문 예측',
-        value: revisitTargetValue.toFixed(1),
-        unit: ' 일 내에 재방문 예상',
-        description: '타겟 고객의 평균 재방문 일수',
-        icon: 'Users',
+      id: 'revisit_rate', 
+      title: 'Revisit Prediction',
+      value: revisitTargetValue.toFixed(1),
+      unit: ' days until expected revisit',
+      description: 'Average days until target customers revisit',
+      icon: 'Users',
         showRatio: false,
         targetAvg: revisitTargetValue.toFixed(1),
         allAvg: revisitAllValue.toFixed(1)
@@ -243,13 +241,13 @@ const getAnalyticsMetrics = (): MetricData[] => {
     ]
   } catch (error) {
     console.error('❌ Analytics 데이터 파싱 실패:', error)
-    errorMessage.value = `API 응답 데이터 파싱에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
+    errorMessage.value = `Failed to parse API response data: ${error instanceof Error ? error.message : 'Unknown error'}`
     rawApiData.value = props.analyticsData
-    return [] // API 데이터 파싱 실패 시 빈 배열 반환
+    return getDefaultAnalyticsMetrics() // API 데이터 파싱 실패 시 기본 데이터 사용
   }
 }
 
-// Channel 데이터에서 메트릭 생성
+// Channel 데이터에서 메트릭 생성 (사용하지 않음)
 const getChannelMetrics = (): MetricData[] => {
   return [] // 총 마케팅 예상 금액 제거 - 더 이상 사용하지 않음
 }
@@ -259,10 +257,10 @@ const getDefaultAnalyticsMetrics = (): MetricData[] => {
   return [
     {
       id: 'conversion_rate',
-      title: '전환율',
+      title: 'Conversion Rate',
       value: '2.33',
       unit: '',
-      description: '타겟 고객 대비 전체 고객의 전환율 비율',
+      description: 'Conversion rate ratio of target vs. all customers',
       icon: 'Target',
       showRatio: true,
       targetAvg: '0.0420',
@@ -270,10 +268,10 @@ const getDefaultAnalyticsMetrics = (): MetricData[] => {
     },
     {
       id: 'revisit_rate', 
-      title: '타겟 재방문 수',
+      title: 'Target Revisit Count',
       value: '3.4',
-      unit: '일',
-      description: '타겟 고객의 평균 재방문 일수',
+      unit: ' days',
+      description: 'Average days until target customers revisit',
       icon: 'Users',
       showRatio: false,
       targetAvg: '3.4',
@@ -281,10 +279,10 @@ const getDefaultAnalyticsMetrics = (): MetricData[] => {
     },
     {
       id: 'pred_revenue_rate',
-      title: '수익성', 
+      title: 'Profitability', 
       value: '1.80',
       unit: '',
-      description: '타겟 고객 대비 전체 고객의 수익성 비율',
+      description: 'Revenue rate ratio of target vs. all customers',
       icon: 'DollarSign',
       showRatio: true,
       targetAvg: '452.0',
@@ -314,10 +312,5 @@ const getDefaultChannelMetrics = (): MetricData[] => {
 // analyticsData 변경 감지
 watch(() => props.analyticsData, (newData) => {
   console.log('👀 PerformanceMetrics에서 analyticsData 변경 감지:', newData)
-}, { deep: true })
-
-// channelData 변경 감지  
-watch(() => props.channelData, (newData) => {
-  console.log('👀 PerformanceMetrics에서 channelData 변경 감지:', newData)
 }, { deep: true })
 </script>
