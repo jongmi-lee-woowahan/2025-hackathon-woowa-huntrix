@@ -105,6 +105,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Users, TrendingUp, CheckCircle, Loader2, Tag } from 'lucide-vue-next'
 import { type HuntrixCampaignRecommendation } from '@/services/campaignApi'
 
@@ -133,6 +134,28 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'segments-selected': [segments: Segment[]]
 }>()
+
+// I18n setup
+const { t, te } = useI18n()
+
+// Labels 번역 함수 (agent API 응답 처리용)
+const translateLabel = (label: string): string => {
+  if (!label) return ''
+  
+  try {
+    const translationKey = `labels.${label}`
+    // 번역 키가 존재하는지 먼저 확인
+    if (te(translationKey)) {
+      return t(translationKey)
+    }
+    // 번역이 없으면 console에 로그 출력하고 원본 반환
+    console.warn(`🌐 Missing translation for segment label: "${label}"`)
+    return label
+  } catch (error) {
+    console.error('Label translation error:', error, 'for label:', label)
+    return label
+  }
+}
 
 // 기본 세그먼트 데이터
 const defaultSegments: Segment[] = [
@@ -205,9 +228,18 @@ const updateSegmentsWithHuntrix = () => {
       values: rec.labels || []
     })
     
-    // Labels 디버깅 및 처리
-    const processedLabels = rec.labels ? (Array.isArray(rec.labels) ? rec.labels : []) : []
-    console.log(`✅ Processed labels for segment ${index}:`, processedLabels)
+    // Labels 디버깅 및 번역 처리
+    let processedLabels: string[] = []
+    if (rec.labels && Array.isArray(rec.labels)) {
+      processedLabels = rec.labels
+        .filter((label: any) => typeof label === 'string' && label.trim().length > 0)
+        .map((label: string) => {
+          const trimmedLabel = label.trim()
+          // 실시간으로 label을 번역하여 반환
+          return translateLabel(trimmedLabel)
+        })
+    }
+    console.log(`✅ Processed and translated labels for segment ${index}:`, processedLabels)
     
     return {
       id: `huntrix_${index}`,

@@ -9,7 +9,7 @@
         {{ $t('channels.subtitle') }}
       </p>
     </div>
-    
+
     <!-- agent-3 데이터 오류 상태 -->
     <div v-if="channelDataError" class="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
       <h3 class="font-semibold text-destructive mb-2">{{ $t('channels.channelDataError') }}</h3>
@@ -73,18 +73,18 @@
               <span class="font-medium text-foreground">{{ channel.allocation }}%</span>
             </div>
             <div class="relative">
-              <input
-                type="range"
-                :value="channel.allocation"
-                @input="updateAllocation(channel.id, Number(($event.target as HTMLInputElement).value))"
-                min="0"
-                max="100"
-                step="5"
+            <input
+              type="range"
+              :value="channel.allocation"
+              @input="updateAllocation(channel.id, Number(($event.target as HTMLInputElement).value))"
+              min="0"
+              max="100"
+              step="5"
                 class="w-full opacity-60 cursor-not-allowed channel-slider"
-                :data-testid="`slider-${channel.id}`"
+              :data-testid="`slider-${channel.id}`"
                 :style="{ '--value': `${channel.allocation}%` }"
                 disabled
-              />
+            />
             </div>
           </div>
         </div>
@@ -127,6 +127,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Share2, Smartphone, Mail, Search, MessageCircle, Rocket, Target, Tag } from 'lucide-vue-next'
 
 interface Channel {
@@ -155,6 +156,28 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'channels-configured': [channels: Channel[]]
 }>()
+
+// I18n setup
+const { t, te } = useI18n()
+
+// Labels 번역 함수 (agent API 응답 처리용)
+const translateLabel = (label: string): string => {
+  if (!label) return ''
+  
+  try {
+    const translationKey = `labels.${label}`
+    // 번역 키가 존재하는지 먼저 확인
+    if (te(translationKey)) {
+      return t(translationKey)
+    }
+    // 번역이 없으면 console에 로그 출력하고 원본 반환
+    console.warn(`🌐 Missing translation for channel label: "${label}"`)
+    return label
+  } catch (error) {
+    console.error('Label translation error:', error, 'for label:', label)
+    return label
+  }
+}
 
 // 기본 채널 아이콘 맵핑
 const getChannelIcon = (name: string) => {
@@ -237,6 +260,46 @@ const translateChannelName = (koreanName: string): string => {
   return translationMap[koreanName] || koreanName // 매핑되지 않으면 원래 이름 사용
 }
 
+// 채널명을 i18n 키로 매핑하는 함수
+const getChannelDescriptionKey = (channelName: string): string => {
+  const keyMap: { [key: string]: string } = {
+    'Push Notifications': 'pushNotifications',
+    'In-App Messages': 'inAppMessages',
+    'Messenger': 'messenger',
+    'SMS': 'sms',
+    'Text Message': 'textMessage',
+    'Email': 'email',
+    'Email Marketing': 'emailMarketing',
+    'Social Media': 'socialMedia',
+    'Mobile': 'mobile',
+    'Mobile Ads': 'mobileAds',
+    'Search': 'search',
+    'Search Ads': 'searchAds',
+    'Messaging': 'messenger', // Messaging을 messenger로 매핑
+    // 한글 채널명도 직접 지원
+    '푸시 알림': 'pushNotifications',
+    '인앱 메시지': 'inAppMessages',
+    '카카오톡': 'messenger',
+    '문자': 'sms',
+    '문자 (SMS)': 'sms',
+    '이메일': 'email',
+    '이메일 마케팅': 'emailMarketing',
+    '소셜미디어': 'socialMedia',
+    '모바일': 'mobile',
+    '모바일 광고': 'mobileAds',
+    '검색': 'search',
+    '검색 광고': 'searchAds',
+    '메신저': 'messenger'
+  }
+  return keyMap[channelName] || 'default'
+}
+
+// 번역된 채널 설명을 가져오는 함수
+const getTranslatedDescription = (channelName: string): string => {
+  const descriptionKey = getChannelDescriptionKey(channelName)
+  return t(`channels.descriptions.${descriptionKey}`)
+}
+
 // 기본 채널 색상 맵핑
 const getChannelColor = (index: number) => {
   const colors = [
@@ -301,12 +364,16 @@ const initializeChannels = () => {
       const pricePerCustomer = getChannelPrice(originalChannelName) // 가격 계산은 원래 이름으로
       const totalCost = customerCount * pricePerCustomer
       
-      // Labels 처리
+      // Labels 처리 및 번역
       let processedLabels: string[] = []
       if (apiChannel.labels && Array.isArray(apiChannel.labels)) {
         processedLabels = apiChannel.labels
           .filter((label: any) => typeof label === 'string' && label.trim().length > 0)
-          .map((label: string) => label.trim())
+          .map((label: string) => {
+            const trimmedLabel = label.trim()
+            // 실시간으로 label을 번역하여 반환
+            return translateLabel(trimmedLabel)
+          })
       }
       
       return {
@@ -318,8 +385,7 @@ const initializeChannels = () => {
         customerCount: customerCount,
         color: getChannelColor(index),
         labels: processedLabels,
-        description: (apiChannel.description && apiChannel.description.trim()) ? 
-                    apiChannel.description.trim() : undefined
+        description: getTranslatedDescription(englishChannelName)
       }
     })
     
@@ -341,60 +407,60 @@ const initializeChannels = () => {
 // 기본 채널 데이터로 초기화
 const initializeDefaultChannels = () => {
   channels.value = [
-    {
-      id: 'social',
+  {
+    id: 'social',
       name: 'Social Media',
-      icon: Share2,
-      allocation: 35,
-      cost: '₩350K',
+    icon: Share2,
+    allocation: 35,
+    cost: '₩350K',
       customerCount: 45200,
       color: 'text-blue-500',
       labels: [],
-      description: undefined
-    },
-    {
-      id: 'mobile',
+      description: getTranslatedDescription('Social Media')
+  },
+  {
+    id: 'mobile',
       name: 'Mobile Ads',
-      icon: Smartphone,
-      allocation: 25,
-      cost: '₩250K',
+    icon: Smartphone,
+    allocation: 25,
+    cost: '₩250K',
       customerCount: 38800,
       color: 'text-green-500',
       labels: [],
-      description: undefined
-    },
-    {
-      id: 'email',
+      description: getTranslatedDescription('Mobile Ads')
+  },
+  {
+    id: 'email',
       name: 'Email Marketing',
-      icon: Mail,
-      allocation: 15,
-      cost: '₩150K',
+    icon: Mail,
+    allocation: 15,
+    cost: '₩150K',
       customerCount: 25500,
       color: 'text-purple-500',
       labels: [],
-      description: undefined
-    },
-    {
-      id: 'search',
+      description: getTranslatedDescription('Email Marketing')
+  },
+  {
+    id: 'search',
       name: 'Search Ads',
-      icon: Search,
-      allocation: 20,
-      cost: '₩200K',
+    icon: Search,
+    allocation: 20,
+    cost: '₩200K',
       customerCount: 42100,
       color: 'text-orange-500',
       labels: [],
-      description: undefined
-    },
-    {
-      id: 'messaging',
+      description: getTranslatedDescription('Search Ads')
+  },
+  {
+    id: 'messaging',
       name: 'Messaging',
-      icon: MessageCircle,
-      allocation: 5,
-      cost: '₩50K',
+    icon: MessageCircle,
+    allocation: 5,
+    cost: '₩50K',
       customerCount: 15200,
       color: 'text-pink-500',
       labels: [],
-      description: undefined
+      description: getTranslatedDescription('Messaging')
     }
   ]
   isLoading.value = false
