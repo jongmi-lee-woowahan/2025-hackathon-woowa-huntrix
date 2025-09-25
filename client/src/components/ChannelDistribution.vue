@@ -79,7 +79,7 @@
                 @input="updateAllocation(channel.id, Number(($event.target as HTMLInputElement).value))"
                 min="0"
                 max="100"
-                step="5"
+                step="1"
                 class="w-full opacity-60 cursor-not-allowed channel-slider"
                 :data-testid="`slider-${channel.id}`"
                 :style="{ '--value': `${channel.allocation}%` }"

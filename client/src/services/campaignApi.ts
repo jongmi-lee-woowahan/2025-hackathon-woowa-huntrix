@@ -1,8 +1,9 @@
 // Campaign API Service Layer
 export interface CampaignMetrics {
+  expectedLTV: string
+  expectedLTVLatest: string
   expectedCTR: string
   expectedConversion: string
-  expectedROI: string
   impressions?: number
   clicks?: number
   conversions?: number
@@ -152,9 +153,10 @@ export const campaignApi = {
         objective: "AI 기반 캠페인 목표",
         segments: ["AI 추천 세그먼트"],
         metrics: {
+          expectedLTV: "340%",
+          expectedLTVLatest: "340%",
           expectedCTR: "3.4%",
-          expectedConversion: "2.8%",
-          expectedROI: "340%"
+          expectedConversion: "2.8%"
         },
         channels: [],
         totalBudget: "₩1.0M",
@@ -314,8 +316,8 @@ export const campaignApi = {
             parsedData = JSON.parse(outputString)
           }
           
-          // 필수 필드 검증: conversionRate, revisitRate, predRevenueRate
-          const requiredFields = ['conversion_rate', 'revisit_rate', 'pred_revenue_rate']
+          // 필수 필드 검증: conversionRate, revisitRate, ltvRate, ltvLatestRate
+          const requiredFields = ['conversion_rate', 'revisit_rate', 'ltv_rate', 'ltv_latest_rate']
           let validationPassed = true
           const validationResults: any = {}
           

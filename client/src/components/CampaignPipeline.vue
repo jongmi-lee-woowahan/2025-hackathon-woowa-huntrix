@@ -10,6 +10,7 @@
           <!-- Platform Dropdown -->
           <div class="relative">
             <button
+              ref="platformButton"
               @click="togglePlatformDropdown"
               class="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-muted transition-colors bg-background"
             >
@@ -24,11 +25,39 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
+            
+            <!-- Platform Dropdown Content -->
+            <div 
+              v-if="showPlatformDropdown"
+              class="absolute top-full right-0 mt-2 w-64 bg-background border border-border rounded-lg shadow-xl z-[999999] max-w-[calc(100vw-2rem)]"
+              data-dropdown="platform"
+              @click.stop
+            >
+              <!-- Platform List -->
+              <div class="max-h-60 overflow-y-auto">
+                <button
+                  v-for="platform in platforms"
+                  :key="platform"
+                  @click="selectPlatform(platform)"
+                  :disabled="platform !== 'Foodpanda'"
+                  class="w-full px-3 py-2 text-left text-sm transition-colors"
+                  :class="{ 
+                    'bg-primary text-primary-foreground': platform === selectedPlatform,
+                    'hover:bg-muted': platform === 'Foodpanda',
+                    'opacity-50 cursor-not-allowed': platform !== 'Foodpanda'
+                  }"
+                >
+                  {{ platform }}
+                  <span v-if="platform !== 'Foodpanda'" class="text-xs text-muted-foreground ml-2">(Coming Soon)</span>
+                </button>
+              </div>
+            </div>
           </div>
           
           <!-- Region Dropdown -->
           <div class="relative">
             <button
+              ref="regionButton"
               @click="toggleRegionDropdown"
               class="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-muted transition-colors bg-background"
             >
@@ -43,6 +72,43 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
+            
+            <!-- Region Dropdown Content -->
+            <div 
+              v-if="showRegionDropdown"
+              class="absolute top-full right-0 mt-2 w-64 bg-background border border-border rounded-lg shadow-xl z-[999999] max-w-[calc(100vw-2rem)]"
+              data-dropdown="region"
+              @click.stop
+            >
+              <!-- Search Bar -->
+              <div class="p-3 border-b border-border">
+                <input
+                  v-model="regionSearch"
+                  type="text"
+                  placeholder="Search"
+                  class="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              
+              <!-- Region List -->
+              <div class="max-h-60 overflow-y-auto">
+                <button
+                  v-for="region in filteredRegions"
+                  :key="region"
+                  @click="selectRegion(region)"
+                  :disabled="region !== 'Philippines'"
+                  class="w-full px-3 py-2 text-left text-sm transition-colors"
+                  :class="{ 
+                    'bg-primary text-primary-foreground': region === selectedRegion,
+                    'hover:bg-muted': region === 'Philippines',
+                    'opacity-50 cursor-not-allowed': region !== 'Philippines'
+                  }"
+                >
+                  {{ region }}
+                  <span v-if="region !== 'Philippines'" class="text-xs text-muted-foreground ml-2">(Coming Soon)</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -190,84 +256,12 @@
         />
     </div>
 
-    <!-- Platform Dropdown Modal -->
-    <div 
-      v-if="showPlatformDropdown"
-      class="fixed inset-0 z-[999999]"
-      @click="showPlatformDropdown = false"
-    >
-      <div 
-        class="w-64 bg-background border border-border rounded-lg shadow-xl"
-        style="position: absolute; top: 5rem; right: 10rem;"
-        @click.stop
-      >
-        <!-- Platform List -->
-        <div class="max-h-60 overflow-y-auto">
-          <button
-            v-for="platform in platforms"
-            :key="platform"
-            @click="selectPlatform(platform)"
-            :disabled="platform !== 'Foodpanda'"
-            class="w-full px-3 py-2 text-left text-sm transition-colors"
-            :class="{ 
-              'bg-primary text-primary-foreground': platform === selectedPlatform,
-              'hover:bg-muted': platform === 'Foodpanda',
-              'opacity-50 cursor-not-allowed': platform !== 'Foodpanda'
-            }"
-          >
-            {{ platform }}
-            <span v-if="platform !== 'Foodpanda'" class="text-xs text-muted-foreground ml-2">(Coming Soon)</span>
-          </button>
-        </div>
-      </div>
-    </div>
 
-    <!-- Region Dropdown Modal -->
-    <div 
-      v-if="showRegionDropdown"
-      class="fixed inset-0 z-[999999]"
-      @click="showRegionDropdown = false"
-    >
-      <div 
-        class="w-64 bg-background border border-border rounded-lg shadow-xl"
-        style="position: absolute; top: 5rem; right: 2rem;"
-        @click.stop
-      >
-        <!-- Search Bar -->
-        <div class="p-3 border-b border-border">
-          <input
-            v-model="regionSearch"
-            type="text"
-            placeholder="Search"
-            class="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-        
-        <!-- Region List -->
-        <div class="max-h-60 overflow-y-auto">
-          <button
-            v-for="region in filteredRegions"
-            :key="region"
-            @click="selectRegion(region)"
-            :disabled="region !== 'Philippines'"
-            class="w-full px-3 py-2 text-left text-sm transition-colors"
-            :class="{ 
-              'bg-primary text-primary-foreground': region === selectedRegion,
-              'hover:bg-muted': region === 'Philippines',
-              'opacity-50 cursor-not-allowed': region !== 'Philippines'
-            }"
-          >
-            {{ region }}
-            <span v-if="region !== 'Philippines'" class="text-xs text-muted-foreground ml-2">(Coming Soon)</span>
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ArrowLeft } from 'lucide-vue-next'
 
 import CampaignObjectiveInput from './CampaignObjectiveInput.vue'
@@ -325,6 +319,10 @@ const regionSearch = ref('')
 const selectedPlatform = ref('Foodpanda')
 const showPlatformDropdown = ref(false)
 
+// Template refs for buttons
+const platformButton = ref<HTMLElement>()
+const regionButton = ref<HTMLElement>()
+
 // Available platforms
 const platforms = [
   'Foodpanda', 'Grab', 'Lazada', 'Shopee', 'Tokopedia',
@@ -375,8 +373,20 @@ const selectRegion = (region: string) => {
 // Close dropdown when clicking outside
 const handleClickOutside = (event: Event) => {
   const target = event.target as HTMLElement
-  if (!target.closest('.relative')) {
+  
+  // Check if click is outside platform dropdown
+  if (showPlatformDropdown.value && platformButton.value && 
+      !platformButton.value.contains(target) && 
+      !target.closest('[data-dropdown="platform"]')) {
+    showPlatformDropdown.value = false
+  }
+  
+  // Check if click is outside region dropdown
+  if (showRegionDropdown.value && regionButton.value && 
+      !regionButton.value.contains(target) && 
+      !target.closest('[data-dropdown="region"]')) {
     showRegionDropdown.value = false
+    regionSearch.value = ''
   }
 }
 
@@ -464,13 +474,15 @@ const campaignSummaryData = computed(() => {
         parsedData = analyticsData.value
       }
 
+      const ltvRate = parsedData.ltv_rate
+      const ltvLatestRate = parsedData.ltv_latest_rate
       const conversionRate = parsedData.conversion_rate
       const revisitRate = parsedData.revisit_rate  
-      const predRevenueRate = parsedData.pred_revenue_rate
 
       if (conversionRate?.target?.avg && conversionRate?.all?.avg &&
           revisitRate?.target?.avg && revisitRate?.all?.avg &&
-          predRevenueRate?.target?.avg && predRevenueRate?.all?.avg) {
+          ltvRate?.target?.avg && ltvRate?.all?.avg &&
+          ltvLatestRate?.target?.avg && ltvLatestRate?.all?.avg) {
         
         // 전환율: target.avg 값을 백분율로 표시
         const conversionValue = (conversionRate.target.avg * 100).toFixed(1)
@@ -479,7 +491,7 @@ const campaignSummaryData = computed(() => {
         const revisitValue = (revisitRate.target.avg).toFixed(1)
         
         // ROI: 타겟 수익률 직접 사용 (비율 계산 없이)
-        const roiValue = (predRevenueRate.target.avg).toFixed(1)
+        const roiValue = (ltvRate.target.avg).toFixed(1)
 
         console.log('✅ 추출된 성과 지표:', {
           expectedRevisitRate: `${revisitValue}회`,
@@ -920,6 +932,15 @@ const goBack = () => {
     currentStep.value = allSteps[currentIndex - 1]
   }
 }
+
+// Setup click outside listener
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>

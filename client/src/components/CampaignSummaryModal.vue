@@ -126,6 +126,18 @@
           <div class="grid grid-cols-3 gap-4">
             <div class="text-center p-3 bg-background/50 rounded-lg">
               <div class="text-2xl font-bold text-primary">
+                {{ campaignData.metrics.expectedLTV }}
+              </div>
+              <div class="text-sm text-muted-foreground">LTV</div>
+            </div>
+            <div class="text-center p-3 bg-background/50 rounded-lg">
+              <div class="text-2xl font-bold text-primary">
+                {{ campaignData.metrics.expectedLTVLatest }}
+              </div>
+              <div class="text-sm text-muted-foreground">LTV (최근 12주)</div>
+            </div>
+            <div class="text-center p-3 bg-background/50 rounded-lg">
+              <div class="text-2xl font-bold text-primary">
                 {{ campaignData.metrics.expectedRevisitRate }}
               </div>
               <div class="text-sm text-muted-foreground">재방문율</div>
@@ -135,12 +147,6 @@
                 {{ campaignData.metrics.expectedConversion }}
               </div>
               <div class="text-sm text-muted-foreground">전환율</div>
-            </div>
-            <div class="text-center p-3 bg-background/50 rounded-lg">
-              <div class="text-2xl font-bold text-primary">
-                {{ campaignData.metrics.expectedROI }}
-              </div>
-              <div class="text-sm text-muted-foreground">ROI</div>
             </div>
           </div>
         </div>

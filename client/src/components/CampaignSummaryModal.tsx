@@ -9,9 +9,10 @@ interface CampaignData {
   objective: string;
   segments: string[];
   metrics: {
+    expectedLTV: string;
+    expectedLTVLatest: string;
     expectedRevisitRate: string;
     expectedConversion: string;
-    expectedROI: string;
   };
   channels: {
     name: string;

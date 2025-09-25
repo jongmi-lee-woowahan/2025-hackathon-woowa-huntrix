@@ -57,7 +57,7 @@
             <span class="text-base font-bold text-muted-foreground">{{ metric.allAvg }}{{ metric.id === 'revisit_rate' ? '회' : '' }}</span>
           </div>
           
-          <!-- 비율 표시 (conversion_rate, pred_revenue_rate만) -->
+          <!-- 비율 표시 (conversion_rate, pred_revenue_rate 등) -->
           <div v-if="metric.showRatio" class="flex items-center justify-center text-sm">
             <component :is="TrendingUp" class="h-4 w-4 text-green-500 mr-1" />
             <span class="text-green-600 font-medium ml-1"> {{ metric.value }} 배 높음</span>
@@ -125,7 +125,7 @@ const getIcon = (iconName: string) => {
 
 // API 데이터를 파싱하여 metrics로 변환 (agent-2와 agent-3 데이터 구분)
 const metrics = computed<MetricData[]>(() => {
-  return getAnalyticsMetrics() // agent-2: 전환율, 타겟 재방문수, 수익성 (3개만)
+  return getAnalyticsMetrics() // agent-2: 전환율, 타겟 재방문수, 수익성 등
 })
 
 // Analytics 데이터에서 메트릭 생성
@@ -163,25 +163,29 @@ const getAnalyticsMetrics = (): MetricData[] => {
     console.log('✅ 파싱된 데이터:', parsedData)
     
     // 각 지표별로 (target.avg / all.avg) * 100 계산
+    const ltvRate = parsedData.ltv_rate
+    const ltvLatestRate = parsedData.ltv_latest_rate
     const conversionRate = parsedData.conversion_rate
     const revisitRate = parsedData.revisit_rate  
-    const predRevenueRate = parsedData.pred_revenue_rate
 
-    if (!conversionRate?.target?.avg || !conversionRate?.all?.avg ||
+    if (!ltvRate?.target?.avg || !ltvRate?.all?.avg ||
+        !conversionRate?.target?.avg || !conversionRate?.all?.avg ||
         !revisitRate?.target?.avg || !revisitRate?.all?.avg ||
-        !predRevenueRate?.target?.avg || !predRevenueRate?.all?.avg) {
+        !ltvLatestRate?.target?.avg || !ltvLatestRate?.all?.avg) {
       throw new Error('필수 데이터 필드가 누락되었습니다.')
     }
 
     // conversionValue와 revenueValue는 비율로 계산
+    const ltvValue = ltvRate.target.avg / ltvRate.all.avg
     const conversionValue = conversionRate.target.avg / conversionRate.all.avg
-    const revenueValue = predRevenueRate.target.avg / predRevenueRate.all.avg
+    const revenueValue = ltvLatestRate.target.avg / ltvLatestRate.all.avg
     
     // revisitValue는 개별 값들을 그대로 사용
     const revisitTargetValue = revisitRate.target.avg
     const revisitAllValue = revisitRate.all.avg
 
     console.log('📊 계산된 지표 값들:', {
+      ltv: ltvValue,
       conversion: conversionValue,
       revisitTarget: revisitTargetValue,
       revisitAll: revisitAllValue,
@@ -193,6 +197,28 @@ const getAnalyticsMetrics = (): MetricData[] => {
 
     return [
       {
+        id: 'ltv_rate',
+        title: 'LTV',
+        value: ltvValue.toFixed(2),
+        unit: ' 배 예상 (평균 고객 대비)',
+        description: '타겟 고객 대비 전체 고객의 LTV 비율',
+        icon: 'DollarSign',
+        showRatio: true,
+        targetAvg: ltvRate.target.avg.toFixed(4),
+        allAvg: ltvRate.all.avg.toFixed(4)
+      },
+      {
+        id: 'ltv_latest_rate',
+        title: 'LTV (최근 12주)',
+        value: (ltvLatestRate.target.avg / ltvLatestRate.all.avg).toFixed(2),
+        unit: ' 배 예상 (평균 고객 대비)',
+        description: '타겟 고객 대비 전체 고객의 LTV 비율 (최근 12주)',
+        icon: 'DollarSign',
+        showRatio: true,
+        targetAvg: ltvLatestRate.target.avg.toFixed(4),
+        allAvg: ltvLatestRate.all.avg.toFixed(4)
+      },
+      {
         id: 'conversion_rate',
         title: '전환율',
         value: (conversionRate.target.avg / conversionRate.all.avg).toFixed(2),
@@ -202,17 +228,6 @@ const getAnalyticsMetrics = (): MetricData[] => {
         showRatio: true,
         targetAvg: conversionRate.target.avg.toFixed(4),
         allAvg: conversionRate.all.avg.toFixed(4)
-      },
-      {
-        id: 'pred_revenue_rate',
-        title: '수익 예측', 
-        value: (predRevenueRate.target.avg / predRevenueRate.all.avg).toFixed(2),
-        unit: ' 배 예상 (평균 고객 대비)',
-        description: '타겟 고객 대비 전체 고객의 수익성 비율',
-        icon: 'DollarSign',
-        showRatio: true,
-        targetAvg: predRevenueRate.target.avg.toFixed(4),
-        allAvg: predRevenueRate.all.avg.toFixed(4)
       },
       {
         id: 'revisit_rate', 
