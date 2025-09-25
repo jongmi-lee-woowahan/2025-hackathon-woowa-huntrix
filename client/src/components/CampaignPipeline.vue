@@ -590,12 +590,12 @@ const handleObjectiveSet = async (newObjective: string, retryCount = 0) => {
       huntrixRecommendations.value = []
       
       // 재시도 로직
-      if (retryCount < 5) { // 최대 5번 재시도
-        console.log('🔄 재시도 중...', retryCount + 1)
-        setTimeout(() => {
-          handleObjectiveSet(newObjective, retryCount + 1)
-        }, 2000) // 2초 후 재시도
-      } else {
+      // if (retryCount < 5) { // 최대 5번 재시도
+      //   console.log('🔄 재시도 중...', retryCount + 1)
+      //   setTimeout(() => {
+      //     handleObjectiveSet(newObjective, retryCount + 1)
+      //   }, 2000) // 2초 후 재시도
+      // } else {
         console.log('❌ 최대 재시도 횟수 초과, 사용자에게 재시도 요청')
         aiStatus.value = 'error'
         aiMessage.value = 'AI 서버 연결에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
@@ -609,7 +609,7 @@ const handleObjectiveSet = async (newObjective: string, retryCount = 0) => {
           console.log('🔄 처음 입력 단계로 돌아가기')
           // currentStep은 이미 'objective'이므로 변경하지 않음
         }, 3000)
-      }
+      // }
     }
   } catch (error) {
     console.error('❌ Huntrix API 호출 실패:', error)
@@ -619,12 +619,12 @@ const handleObjectiveSet = async (newObjective: string, retryCount = 0) => {
     console.log('🚫 에러로 인해 huntrixRecommendations를 빈 배열로 설정')
     
     // 재시도 로직
-    if (retryCount < 3) { // 최대 3번 재시도
-      console.log('🔄 재시도 중...', retryCount + 1)
-      setTimeout(() => {
-        handleObjectiveSet(newObjective, retryCount + 1)
-      }, 2000) // 2초 후 재시도
-    } else {
+    // if (retryCount < 3) { // 최대 3번 재시도
+    //   console.log('🔄 재시도 중...', retryCount + 1)
+    //   setTimeout(() => {
+    //     handleObjectiveSet(newObjective, retryCount + 1)
+    //   }, 2000) // 2초 후 재시도
+    // } else {
       console.log('❌ 최대 재시도 횟수 초과, 사용자에게 재시도 요청')
       aiStatus.value = 'error'
       aiMessage.value = 'AI 서버 연결에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
@@ -638,7 +638,7 @@ const handleObjectiveSet = async (newObjective: string, retryCount = 0) => {
         console.log('🔄 처음 입력 단계로 돌아가기')
         // currentStep은 이미 'objective'이므로 변경하지 않음
       }, 3000)
-    }
+    // }
   } finally {
     if (retryCount === 0 || retryCount >= 3) { // 첫 번째 시도이거나 최대 재시도 횟수 초과 시 로딩 상태 해제
       isLoadingRecommendations.value = false
@@ -747,7 +747,6 @@ const handleSegmentsSelected = async (segments: Segment[]) => {
       const errorMsg = error instanceof Error ? error.message : '알 수 없는 오류'
       const retryInfo = []
       if (analyticsRetryCount > 1) retryInfo.push(`Analytics ${analyticsRetryCount-1}번`)
-      if (channelRetryCount > 1) retryInfo.push(`Channel ${channelRetryCount-1}번`)
       
       const retryText = retryInfo.length > 0 ? ` (${retryInfo.join(', ')} 재시도 실패)` : ''
       aiMessage.value = `분석 실패: ${errorMsg}${retryText}`

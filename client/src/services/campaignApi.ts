@@ -737,6 +737,17 @@ export const campaignApi = {
           continue
         }
 
+        // segments 키로 래핑되어 있는 경우 처리 (예: { segments: [...] } -> [...])
+        if (parsedData.length === 1 && 
+            typeof parsedData[0] === 'object' && 
+            parsedData[0] !== null && 
+            'segments' in parsedData[0] && 
+            Array.isArray((parsedData[0] as any).segments)) {
+          console.log(`🔄 segments 키로 래핑되어 있음을 감지, unwrapping 진행 (시도 ${attempt})`)
+          parsedData = (parsedData[0] as any).segments as HuntrixCampaignRecommendation[]
+          console.log(`📊 Unwrapped 데이터 (시도 ${attempt}):`, parsedData)
+        }
+
         // name, description 필드 검증
         const invalidSegments = parsedData.filter(segment => 
           !segment.name || !segment.description || 
