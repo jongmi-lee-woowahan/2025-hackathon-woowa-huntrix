@@ -3,13 +3,13 @@
     <div class="border-0 bg-card/50 backdrop-blur-sm p-6 rounded-lg">
       <h2 class="flex items-center space-x-2 text-xl pb-2">
         <Users class="h-5 w-5 text-primary" />
-        <span>고객 세그먼트 선택</span>
+        <span>{{ $t('segmentation.title') }}</span>
       </h2>
       <p class="text-muted-foreground pb-4">
-        타겟팅할 고객 그룹을 선택해주세요. 하나의 세그먼트만 선택할 수 있습니다.
+        Please select the customer group to target. You can only select one segment.
       </p>
       
-      <!-- 통합 세그먼트 목록 -->
+      <!-- Integrated segment list -->
       <div class="grid gap-4 md:grid-cols-2 mb-6">
         <div
           v-for="(segment, index) in segments"
@@ -24,7 +24,7 @@
           ]"
           :data-testid="`card-segment-${segment.id}`"
         >
-          <!-- Name과 선택 상태, 고객 수 -->
+          <!-- Name, selection state, and customer count -->
           <div class="flex items-start justify-between mb-3">
             <div class="flex items-center space-x-2">
               <span class="text-lg font-medium">{{ segment.name }}</span>
@@ -32,31 +32,44 @@
             </div>
             <div class="flex items-center space-x-1 text-muted-foreground">
               <TrendingUp class="h-4 w-4" />
-              <span class="text-sm font-medium">{{ segment.size.toLocaleString() }}{{ segment.source === 'huntrix' ? '명' : '' }}</span>
+              <span class="text-sm font-medium">{{ (segment.size || 0).toLocaleString() }}{{ segment.source === 'huntrix' ? ' people' : '' }}</span>
             </div>
           </div>
           
-          <!-- Tags를 Name 바로 아래 표시 -->
-          <div v-if="segment.tags && segment.tags.length > 0" class="flex flex-wrap gap-1 mb-3">
-            <span
-              v-for="tag in segment.tags.slice(0, segment.source === 'huntrix' ? 3 : 10)"
-              :key="tag"
-              :class="[
-                'px-2 py-1 text-xs rounded inline-flex items-center space-x-1',
-                segment.source === 'huntrix' 
-                  ? 'bg-primary/5 text-primary' 
-                  : 'bg-muted text-muted-foreground'
-              ]"
-            >
-              <Tag v-if="segment.source === 'huntrix'" class="h-3 w-3" />
-              <span>{{ tag }}</span>
-            </span>
-            <span v-if="segment.source === 'huntrix' && segment.tags.length > 3" class="text-xs text-muted-foreground px-2 py-1">
-              +{{ segment.tags.length - 3 }}개 더
-            </span>
+          <!-- Display Tags directly below Name -->
+          <div class="mb-3">
+            <!-- 디버그 정보 표시 (개발 환경에서만) -->
+            <div v-if="segment.source === 'huntrix' && segment.tags?.length === 0" class="text-xs text-orange-500 mb-1">
+              🔍 Debug: No tags found - tags={{ JSON.stringify(segment.tags) }}
+            </div>
+            
+            <!-- 태그가 있을 때 표시 -->
+            <div v-if="segment.tags && segment.tags.length > 0" class="flex flex-wrap gap-1">
+              <span
+                v-for="tag in segment.tags.slice(0, segment.source === 'huntrix' ? 3 : 10)"
+                :key="tag"
+                :class="[
+                  'px-2 py-1 text-xs rounded inline-flex items-center space-x-1',
+                  segment.source === 'huntrix' 
+                    ? 'bg-primary/5 text-primary' 
+                    : 'bg-muted text-muted-foreground'
+                ]"
+              >
+                <Tag v-if="segment.source === 'huntrix'" class="h-3 w-3" />
+                <span>{{ tag }}</span>
+              </span>
+              <span v-if="segment.source === 'huntrix' && segment.tags.length > 3" class="text-xs text-muted-foreground px-2 py-1">
+                +{{ segment.tags.length - 3 }} {{ $t('segmentation.more') }}
+              </span>
+            </div>
+            
+            <!-- 태그가 없을 때 표시 -->
+            <div v-else-if="segment.source === 'huntrix'" class="text-xs text-red-500">
+              ⚠️ {{ $t('segmentation.noTagsAvailable') }}
+            </div>
           </div>
           
-          <!-- Description을 Tags 아래 표시 -->
+          <!-- Display Description below Tags -->
           <p v-if="segment.description" class="text-sm text-muted-foreground leading-relaxed">{{ segment.description }}</p>
           
         </div>
@@ -66,10 +79,10 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-sm font-medium text-foreground">
-              선택된 세그먼트: {{ selectedSegments.length }}개
+              {{ $t('segmentation.selectedSegments') }}: {{ selectedSegments.length }}
             </p>
             <p class="text-sm text-muted-foreground">
-              총 타겟 고객 수: {{ totalCustomers.toLocaleString() }}명
+              {{ $t('segmentation.totalTargetCustomers') }}: {{ totalCustomers.toLocaleString() }} {{ $t('segmentation.people') }}
             </p>
           </div>
           <button 
@@ -80,9 +93,9 @@
           >
             <span v-if="isProcessing" class="flex items-center space-x-2">
               <Loader2 class="h-4 w-4 animate-spin" />
-              <span>분석 중...</span>
+              <span>{{ $t('segmentation.analyzing') }}</span>
             </span>
-            <span v-else>성과 분석 단계로</span>
+            <span v-else>{{ $t('segmentation.goToPerformanceAnalysis') }}</span>
           </button>
         </div>
       </div>
@@ -125,37 +138,37 @@ const emit = defineEmits<{
 const defaultSegments: Segment[] = [
   {
     id: '1',
-    name: '젊은 전문직',
+    name: 'Young Professionals',
     size: 15420,
-    description: '25-35세 직장인, 높은 구매력, 디지털 네이티브',
-    tags: ['높은소득', '온라인활성', '브랜드충성'],
+    description: '25-35 years old office workers, high purchasing power, digital natives',
+    tags: ['High Income', 'Online Active', 'Brand Loyal'],
     selected: false,
     source: 'default'
   },
   {
     id: '2', 
-    name: '중년 가족층',
+    name: 'Middle-aged Families',
     size: 23150,
-    description: '35-50세 가정 주 구매자, 실용성 중시',
-    tags: ['가족중심', '실용성', '안정추구'],
+    description: '35-50 years old primary household buyers, value practicality',
+    tags: ['Family-focused', 'Practical', 'Stability-seeking'],
     selected: false,
     source: 'default'
   },
   {
     id: '3',
-    name: '시니어층',
+    name: 'Seniors',
     size: 8900,
-    description: '50세 이상, 신중한 구매 패턴, 품질 중시',
-    tags: ['품질중시', '신중구매', '경험중요'],
+    description: 'Over 50 years old, careful purchasing patterns, quality-focused',
+    tags: ['Quality-focused', 'Careful buyers', 'Experience-important'],
     selected: false,
     source: 'default'
   },
   {
     id: '4',
-    name: 'Z세대',
+    name: 'Gen Z',
     size: 19800,
-    description: '18-25세, SNS 활용도 높음, 트렌드 민감',
-    tags: ['소셜미디어', '트렌드', '개성추구'],
+    description: '18-25 years old, high SNS usage, trend-sensitive',
+    tags: ['Social Media', 'Trendy', 'Individuality-seeking'],
     selected: false,
     source: 'default'
   }
@@ -184,14 +197,24 @@ const updateSegmentsWithHuntrix = () => {
   console.log('Huntrix 추천 개수:', props.huntrixRecommendations.length)
   
   const huntrixSegments: Segment[] = props.huntrixRecommendations.map((rec, index) => {
-    console.log(`Processing huntrix segment ${index}:`, rec)
+    console.log(`🔍 Processing huntrix segment ${index}:`, rec)
+    console.log(`🏷️ Labels for segment ${index}:`, {
+      rawLabels: rec.labels,
+      isArray: Array.isArray(rec.labels),
+      length: rec.labels?.length || 0,
+      values: rec.labels || []
+    })
+    
+    // Labels 디버깅 및 처리
+    const processedLabels = rec.labels ? (Array.isArray(rec.labels) ? rec.labels : []) : []
+    console.log(`✅ Processed labels for segment ${index}:`, processedLabels)
     
     return {
       id: `huntrix_${index}`,
       name: rec.name, // segment.name
-      size: rec.customer_cnt, // segment.size  
+      size: rec.customer_cnt || 0, // segment.size - default to 0 if undefined  
       description: rec.description, // segment.description
-      tags: rec.lables || [], // segment.tags (API의 lables를 tags로)
+      tags: processedLabels, // segment.tags (API의 lables를 tags로)
       selected: false,
       source: 'huntrix' as const,
       huntrixData: rec,
@@ -225,7 +248,7 @@ onMounted(() => {
 
 // 선택된 세그먼트들과 총 고객 수
 const selectedSegments = computed(() => segments.value.filter(s => s.selected))
-const totalCustomers = computed(() => selectedSegments.value.reduce((sum, s) => sum + s.size, 0))
+const totalCustomers = computed(() => selectedSegments.value.reduce((sum, s) => sum + (s.size || 0), 0))
 
 // Huntrix 세그먼트 개수
 const huntrixCount = computed(() => segments.value.filter(s => s.source === 'huntrix').length)

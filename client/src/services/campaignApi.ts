@@ -41,7 +41,7 @@ export interface HuntrixCampaignRecommendation {
   name: string
   description: string
   customer_cnt: number
-  lables: string[] // API에서 'lables' 사용 (오타)
+  labels: string[] // API에서 'labels' 사용 (올바른 철자)
   conditions: HuntrixCondition[] // API 서버 전달용 조건
 }
 
@@ -714,9 +714,9 @@ export const campaignApi = {
         }
         
         // JSON 파싱
-        let parsedData: HuntrixCampaignRecommendation[]
+        let rawParsedData: any[]
         try {
-          parsedData = JSON.parse(jsonString) as HuntrixCampaignRecommendation[]
+          rawParsedData = JSON.parse(jsonString) as any[]
         } catch (parseError) {
           lastError = new Error(`JSON 파싱 실패: ${parseError instanceof Error ? parseError.message : '알 수 없는 오류'}`)
           if (attempt === MAX_RETRIES) {
@@ -726,16 +726,57 @@ export const campaignApi = {
           continue
         }
         
-        console.log(`📊 파싱된 데이터 (시도 ${attempt}):`, parsedData)
+        console.log(`📊 파싱된 원시 데이터 (시도 ${attempt}):`, rawParsedData)
         
-        if (!Array.isArray(parsedData)) {
-          lastError = new Error('파싱된 데이터가 배열이 아닙니다.')
+        if (!Array.isArray(rawParsedData) || rawParsedData.length === 0) {
+          lastError = new Error('파싱된 데이터가 빈 배열이거나 배열이 아닙니다.')
           if (attempt === MAX_RETRIES) {
             throw lastError
           }
-          console.log(`⚠️ 데이터가 배열이 아님 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
+          console.log(`⚠️ 데이터 구조 오류 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
           continue
         }
+
+        // 첫 번째 캠페인 객체에서 segments 배열 추출
+        const campaignObject = rawParsedData[0]
+        if (!campaignObject || !campaignObject.segments || !Array.isArray(campaignObject.segments)) {
+          lastError = new Error('캠페인 객체에 segments 배열이 없습니다.')
+          if (attempt === MAX_RETRIES) {
+            throw lastError
+          }
+          console.log(`⚠️ segments 배열 누락 (시도 ${attempt}), ${attempt + 1}번째 시도를 진행합니다...`)
+          continue
+        }
+
+        console.log(`📊 Campaign 객체:`, {
+          name: campaignObject.name,
+          description: campaignObject.description,
+          segmentsCount: campaignObject.segments.length
+        })
+
+        // segments 배열을 HuntrixCampaignRecommendation[] 형태로 변환
+        const parsedData: HuntrixCampaignRecommendation[] = campaignObject.segments.map((segment: any) => ({
+          name: segment.name || '',
+          description: segment.description || '',
+          customer_cnt: segment.customer_cnt || 0,
+          labels: segment.labels || [],
+          conditions: segment.conditions || []
+        }))
+        
+        console.log(`📊 변환된 세그먼트 데이터 (시도 ${attempt}):`, parsedData)
+        
+        // Labels 필드 디버깅
+        console.log('🏷️ Labels 필드 디버깅:')
+        parsedData.forEach((item, index) => {
+          console.log(`  Segment ${index}:`, {
+            name: item.name,
+            hasLabels: 'labels' in item,
+            labelsType: typeof item.labels,
+            labelsIsArray: Array.isArray(item.labels),
+            labelsValue: item.labels,
+            labelsLength: item.labels?.length || 0
+          })
+        })
 
         // name, description 필드 검증
         const invalidSegments = parsedData.filter(segment => 
@@ -765,13 +806,13 @@ export const campaignApi = {
           continue
         }
 
-        console.log(`📈 유효한 캠페인 개수 (시도 ${attempt}):`, parsedData.length)
+        console.log(`📈 유효한 세그먼트 개수 (시도 ${attempt}):`, parsedData.length)
         console.log(`✅ 모든 세그먼트에 name, description 포함 확인`)
 
         return {
           data: parsedData,
           success: true,
-          message: `AI가 ${parsedData.length}개의 캠페인을 추천했습니다.`
+          message: `AI가 ${parsedData.length}개의 세그먼트를 추천했습니다.`
         }
       } catch (error) {
         console.error('🚨 Huntrix API request failed:', error)
