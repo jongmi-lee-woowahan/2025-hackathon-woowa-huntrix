@@ -160,27 +160,54 @@ const getAnalyticsMetrics = (): MetricData[] => {
     
     console.log('✅ 파싱된 데이터:', parsedData)
     
+    // 헬퍼 함수: target.avg 또는 target.data.avg 구조를 모두 처리
+    const getAvgValue = (obj: any, type: 'target' | 'all') => {
+      if (!obj || !obj[type]) return undefined
+      
+      // target.avg 구조인 경우
+      if (typeof obj[type].avg === 'number') {
+        return obj[type].avg
+      }
+      
+      // target.data.avg 구조인 경우  
+      if (obj[type].data && typeof obj[type].data.avg === 'number') {
+        return obj[type].data.avg
+      }
+      
+      return undefined
+    }
+    
     // 각 지표별로 (target.avg / all.avg) * 100 계산
     const ltvRate = parsedData.ltv_rate
     const ltvLatestRate = parsedData.ltv_latest_rate
     const conversionRate = parsedData.conversion_rate
     const revisitRate = parsedData.revisit_rate  
 
-    if (typeof ltvRate?.target?.avg !== 'number' || typeof ltvRate?.all?.avg !== 'number' ||
-        typeof conversionRate?.target?.avg !== 'number' || typeof conversionRate?.all?.avg !== 'number' ||
-        typeof revisitRate?.target?.avg !== 'number' || typeof revisitRate?.all?.avg !== 'number' ||
-        typeof ltvLatestRate?.target?.avg !== 'number' || typeof ltvLatestRate?.all?.avg !== 'number') {
+    // 필수 데이터 검증
+    const ltvTargetAvg = getAvgValue(ltvRate, 'target')
+    const ltvAllAvg = getAvgValue(ltvRate, 'all')
+    const conversionTargetAvg = getAvgValue(conversionRate, 'target')
+    const conversionAllAvg = getAvgValue(conversionRate, 'all')
+    const revisitTargetAvg = getAvgValue(revisitRate, 'target')
+    const revisitAllAvg = getAvgValue(revisitRate, 'all')
+    const ltvLatestTargetAvg = getAvgValue(ltvLatestRate, 'target')
+    const ltvLatestAllAvg = getAvgValue(ltvLatestRate, 'all')
+
+    if (typeof ltvTargetAvg !== 'number' || typeof ltvAllAvg !== 'number' ||
+        typeof conversionTargetAvg !== 'number' || typeof conversionAllAvg !== 'number' ||
+        typeof revisitTargetAvg !== 'number' || typeof revisitAllAvg !== 'number' ||
+        typeof ltvLatestTargetAvg !== 'number' || typeof ltvLatestAllAvg !== 'number') {
       throw new Error('필수 데이터 필드가 누락되었습니다.')
     }
 
     // conversionValue와 revenueValue는 비율로 계산
-    const ltvValue = ltvRate.target.avg / ltvRate.all.avg
-    const conversionValue = conversionRate.target.avg / conversionRate.all.avg
-    const revenueValue = ltvLatestRate.target.avg / ltvLatestRate.all.avg
+    const ltvValue = ltvTargetAvg / ltvAllAvg
+    const conversionValue = conversionTargetAvg / conversionAllAvg
+    const revenueValue = ltvLatestTargetAvg / ltvLatestAllAvg
     
     // revisitValue는 개별 값들을 그대로 사용
-    const revisitTargetValue = revisitRate.target.avg
-    const revisitAllValue = revisitRate.all.avg
+    const revisitTargetValue = revisitTargetAvg
+    const revisitAllValue = revisitAllAvg
 
     console.log('📊 계산된 지표 값들:', {
       ltv: ltvValue,
