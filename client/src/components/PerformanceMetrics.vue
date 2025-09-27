@@ -166,10 +166,10 @@ const getAnalyticsMetrics = (): MetricData[] => {
     const conversionRate = parsedData.conversion_rate
     const revisitRate = parsedData.revisit_rate  
 
-    if (!ltvRate?.target?.avg || !ltvRate?.all?.avg ||
-        !conversionRate?.target?.avg || !conversionRate?.all?.avg ||
-        !revisitRate?.target?.avg || !revisitRate?.all?.avg ||
-        !ltvLatestRate?.target?.avg || !ltvLatestRate?.all?.avg) {
+    if (typeof ltvRate?.target?.avg !== 'number' || typeof ltvRate?.all?.avg !== 'number' ||
+        typeof conversionRate?.target?.avg !== 'number' || typeof conversionRate?.all?.avg !== 'number' ||
+        typeof revisitRate?.target?.avg !== 'number' || typeof revisitRate?.all?.avg !== 'number' ||
+        typeof ltvLatestRate?.target?.avg !== 'number' || typeof ltvLatestRate?.all?.avg !== 'number') {
       throw new Error('필수 데이터 필드가 누락되었습니다.')
     }
 
