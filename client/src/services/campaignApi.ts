@@ -338,7 +338,7 @@ export const campaignApi = {
             const allAvg = allData.avg
             
             if (typeof targetAvg !== 'number' || typeof allAvg !== 'number' || 
-                isNaN(targetAvg) || isNaN(allAvg) || targetAvg <= 0 || allAvg <= 0) {
+                isNaN(targetAvg) || isNaN(allAvg)) {
               validationPassed = false
               validationResults[field] = {
                 targetAvg: { value: targetAvg, type: typeof targetAvg, valid: typeof targetAvg === 'number' && !isNaN(targetAvg) && targetAvg > 0 },
